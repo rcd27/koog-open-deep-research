@@ -1,2 +1,6 @@
-# koog-open-deep-research
-`langchain-open-deep-research` but with `Koog`
+#### Prerequisites
+
+- Tavily-MCP(currently with local MCP Server):
+```shell
+npx -y tavily-mcp@latest
+```
