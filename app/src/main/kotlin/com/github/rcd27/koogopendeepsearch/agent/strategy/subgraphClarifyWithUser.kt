@@ -8,7 +8,7 @@ import ai.koog.agents.core.dsl.builder.forwardTo
 fun AIAgentSubgraphBuilderBase<*, *>.subgraphClarifyWithUser(
     askUserTool: (String) -> String
 ): AIAgentSubgraphDelegate<String, String> = subgraph("clarify_with_user") {
-    val clarify: AIAgentNodeBase<Unit, ClarifyWithUser> by clarify()
+    val clarify: AIAgentNodeBase<Unit, ClarifyWithUser> by nodeClarify()
 
     /** Since we don't have any interrupt()-like stuff */
     val askUser: AIAgentNodeBase<String, Unit> by nodeAskUser(askUserTool)

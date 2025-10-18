@@ -68,7 +68,7 @@ data class ClarifyWithUser(
  * with research. If clarification is disabled or not needed, it proceeds directly to research.
  */
 @OptIn(ExperimentalTime::class)
-fun AIAgentSubgraphBuilderBase<*, *>.clarify(): AIAgentNodeDelegate<Unit, ClarifyWithUser> =
+fun AIAgentSubgraphBuilderBase<*, *>.nodeClarify(): AIAgentNodeDelegate<Unit, ClarifyWithUser> =
     node("clarify") { nodeInput ->
         llm.writeSession {
             val initialPrompt = prompt
