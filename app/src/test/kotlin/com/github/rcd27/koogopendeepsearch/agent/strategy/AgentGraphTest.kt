@@ -40,8 +40,10 @@ class AgentGraphTest {
             withTesting {
                 verifyStrategy<String, String>("deep_research") {
                     val clarifyWithUser = assertSubgraphByName<String, String>("clarify_with_user")
+                    // You need to have at least one verification
                     verifySubgraph(clarifyWithUser)
                 }
+                // Make sure you have `verifyStrategy` block not to catch NPE from agents-test
                 enableGraphTesting = true
             }
         }
