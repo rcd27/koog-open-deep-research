@@ -68,43 +68,42 @@ data class ClarifyWithUser(
  * with research. If clarification is disabled or not needed, it proceeds directly to research.
  */
 @OptIn(ExperimentalTime::class)
-fun AIAgentSubgraphBuilderBase<*, *>.clarifyWithUser(
-    nodeName: String
-): AIAgentNodeDelegate<Unit, ClarifyWithUser> = node(nodeName) { nodeInput ->
-    llm.writeSession {
-        val initialPrompt = prompt
+fun AIAgentSubgraphBuilderBase<*, *>.clarify(): AIAgentNodeDelegate<Unit, ClarifyWithUser> =
+    node("clarify") { nodeInput ->
+        llm.writeSession {
+            val initialPrompt = prompt
 
-        /** Langchain implementation treats nodes as standalone agents with their own system_prompt */
-        prompt = prompt("clarify_with_user_instructions_prompt") {
-            system(
-                clarifyWithUserInstructions(
-                    messages = initialPrompt.messages.foldPromptMessages(),
-                    date = getTodayStr()
+            /** Langchain implementation treats nodes as standalone agents with their own system_prompt */
+            prompt = prompt("clarify_with_user_instructions_prompt") {
+                system(
+                    clarifyWithUserInstructions(
+                        messages = initialPrompt.messages.foldPromptMessages(),
+                        date = getTodayStr()
+                    )
                 )
-            )
+            }
+
+            val llmStructuredResult: ClarifyWithUser = requestLLMStructured(
+                examples = listOf(
+                    ClarifyWithUser(
+                        needClarification = true,
+                        question = "What is the model of a car you want to buy?",
+                        verification = ""
+                    ),
+                    ClarifyWithUser(
+                        needClarification = false,
+                        question = "",
+                        verification = "The chosen car is Honda Civic FD8, 1.8L"
+                    ),
+                ),
+                fixingParser = StructureFixingParser(
+                    fixingModel = OpenAIModels.CostOptimized.GPT4oMini,
+                    retries = 3,
+                )
+            ).getOrThrow().structure
+
+            prompt = initialPrompt
+
+            return@writeSession llmStructuredResult
         }
-
-        val llmStructuredResult: ClarifyWithUser = requestLLMStructured(
-            examples = listOf(
-                ClarifyWithUser(
-                    needClarification = true,
-                    question = "What is the model of a car you want to buy?",
-                    verification = ""
-                ),
-                ClarifyWithUser(
-                    needClarification = false,
-                    question = "",
-                    verification = "The chosen car is Honda Civic FD8, 1.8L"
-                ),
-            ),
-            fixingParser = StructureFixingParser(
-                fixingModel = OpenAIModels.CostOptimized.GPT4oMini,
-                retries = 3,
-            )
-        ).getOrThrow().structure
-
-        prompt = initialPrompt
-
-        return@writeSession llmStructuredResult
     }
-}

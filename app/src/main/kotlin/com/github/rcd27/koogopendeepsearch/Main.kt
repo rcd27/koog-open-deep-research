@@ -39,11 +39,12 @@ suspend fun main() {
 
     val agent = AIAgent(
         promptExecutor = openAISinglePromptExecutor,
-        strategy = deepResearchStrategy(askUser = { question ->
-            println(question)
-            print("Answer: ")
-            readln()
-        }),
+        strategy = deepResearchStrategy(
+            askUserTool = { question ->
+                println(question)
+                print("Answer: ")
+                readln()
+            }),
         agentConfig = agentConfig,
         toolRegistry = tavilyMcpToolRegistry
     ) {
