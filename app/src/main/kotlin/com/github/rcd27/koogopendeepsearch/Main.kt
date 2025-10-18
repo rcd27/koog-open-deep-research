@@ -1,7 +1,5 @@
 package com.github.rcd27.koogopendeepsearch
 
-import com.github.rcd27.koogopendeepsearch.agent.executor.openAISinglePromptExecutor
-import com.github.rcd27.koogopendeepsearch.agent.strategy.deepResearchStrategy
 import ai.koog.agents.core.agent.AIAgent
 import ai.koog.agents.core.agent.config.AIAgentConfig
 import ai.koog.agents.features.opentelemetry.feature.OpenTelemetry
@@ -9,6 +7,8 @@ import ai.koog.agents.features.opentelemetry.integration.langfuse.addLangfuseExp
 import ai.koog.agents.mcp.McpToolRegistryProvider
 import ai.koog.agents.mcp.defaultStdioTransport
 import ai.koog.prompt.executor.clients.openai.OpenAIModels
+import com.github.rcd27.koogopendeepsearch.agent.executor.openAISinglePromptExecutor
+import com.github.rcd27.koogopendeepsearch.agent.strategy.deepResearchStrategy
 
 suspend fun main() {
     val agentConfig = AIAgentConfig.withSystemPrompt(
@@ -39,7 +39,11 @@ suspend fun main() {
 
     val agent = AIAgent(
         promptExecutor = openAISinglePromptExecutor,
-        strategy = deepResearchStrategy(askUser = { "STUB" }),
+        strategy = deepResearchStrategy(askUser = { question ->
+            println(question)
+            print("Answer: ")
+            readln()
+        }),
         agentConfig = agentConfig,
         toolRegistry = tavilyMcpToolRegistry
     ) {
@@ -53,6 +57,6 @@ suspend fun main() {
             )
         }
     }
-    val executionResult = agent.run("Please make a deep research about my Honda")
+    val executionResult = agent.run("")
     println(executionResult)
 }
