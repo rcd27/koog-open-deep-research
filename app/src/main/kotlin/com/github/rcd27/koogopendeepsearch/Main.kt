@@ -44,7 +44,8 @@ suspend fun main() {
                 println(question)
                 print("Answer: ")
                 readln()
-            }),
+            }
+        ),
         agentConfig = agentConfig,
         toolRegistry = tavilyMcpToolRegistry
     ) {

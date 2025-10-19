@@ -50,8 +50,7 @@ class NodeClarifyTest {
             config = AIAgentConfig(
                 prompt = initialPrompt,
                 model = OpenAIModels.CostOptimized.GPT4oMini,
-                maxAgentIterations =
-                    10
+                maxAgentIterations = 10
             ),
             clock = testClock
         )

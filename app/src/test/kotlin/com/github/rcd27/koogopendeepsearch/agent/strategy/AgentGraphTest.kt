@@ -15,9 +15,9 @@ import kotlin.test.Test
 class AgentGraphTest {
 
     @Test
-    fun `Test clarify_with_user subgraph succeeds if needClarification=false`() {
+    fun `Test deepResearchStrategy`() {
         val mockExecutor = getMockExecutor {
-            // #1 When: initial prompt contains empty chat history
+            // #1 Then: LLM asks for clarification
             mockLLMAnswer(
                 Json.encodeToString(
                     ClarifyWithUser(
@@ -26,8 +26,9 @@ class AgentGraphTest {
                         verification = ""
                     )
                 )
+                // #1 When: initial prompt contains empty chat history
             ).onRequestContains("<messages>\n<previous_conversation/>\n</messages>")
-            // #2 When: user clarifies topic etc.
+            // #2 Then: LLM decides it has enough info to proceed
             mockLLMAnswer(
                 Json.encodeToString(
                     ClarifyWithUser(
@@ -36,7 +37,27 @@ class AgentGraphTest {
                         "I totally understand what research you need"
                     )
                 )
-            ).onRequestContains("Is it possible to live on Mars?")
+                // #2 When: user clarifies topic etc.
+            ).onRequestContains(
+                """
+                <messages>
+                <previous_conversation>
+                  <user>
+                    Is it possible to live on Mars?
+                  </user>
+                </previous_conversation>
+                </messages>
+                """.trimIndent()
+            )
+            // #3 Then: LLM generates a brief topic for research
+            mockLLMAnswer(
+                Json.encodeToString(
+                    ResearchQuestion(
+                        "What are the key scientific, environmental, and technological challenges involved in establishing a sustainable human presence on Mars, and what are the potential solutions or advancements needed to address these challenges?"
+                    )
+                )
+                // #3 When: LLM is asked for generating research brief
+            ).onRequestContains("""The messages that have been exchanged so far between yourself and the user are:""".trimIndent())
         }
 
         val agent = AIAgent(

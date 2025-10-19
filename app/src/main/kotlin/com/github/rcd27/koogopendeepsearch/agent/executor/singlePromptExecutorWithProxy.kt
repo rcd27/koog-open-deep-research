@@ -1,14 +1,13 @@
 package com.github.rcd27.koogopendeepsearch.agent.executor
 
-import com.github.rcd27.koogopendeepsearch.Config
 import ai.koog.prompt.executor.clients.openai.OpenAILLMClient
 import ai.koog.prompt.executor.llms.SingleLLMPromptExecutor
-import io.ktor.client.*
-import io.ktor.client.engine.*
-import io.ktor.client.engine.cio.*
+import com.github.rcd27.koogopendeepsearch.Config
+import io.ktor.client.HttpClient
+import io.ktor.client.engine.ProxyBuilder
+import io.ktor.client.engine.cio.CIO
 import io.ktor.client.plugins.HttpTimeout
-import io.ktor.http.*
-
+import io.ktor.http.Url
 
 val httpClientWithProxy = createHttpClientWithOptionalProxy(Config.PROXY_URL)
 

@@ -3,7 +3,6 @@ package com.github.rcd27.koogopendeepsearch.agent.utils
 import ai.koog.prompt.message.Message
 import ai.koog.prompt.xml.xml
 
-
 fun List<Message>.foldPromptMessages(): String = xml {
     tag("previous_conversation") {
         this@foldPromptMessages.forEach { message ->
