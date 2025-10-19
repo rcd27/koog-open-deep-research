@@ -26,7 +26,7 @@ class AgentGraphTest {
                         verification = ""
                     )
                 )
-            // #1 When: initial prompt contains empty chat history
+                // #1 When: initial prompt contains empty chat history
             ).onRequestContains("<messages>\n<previous_conversation/>\n</messages>")
             // #2 Then: LLM decides it has enough info to proceed
             mockLLMAnswer(
@@ -37,8 +37,9 @@ class AgentGraphTest {
                         "I totally understand what research you need"
                     )
                 )
-            // #2 When: user clarifies topic etc.
-            ).onRequestContains("""
+                // #2 When: user clarifies topic etc.
+            ).onRequestContains(
+                """
                 <messages>
                 <previous_conversation>
                   <user>
@@ -46,7 +47,8 @@ class AgentGraphTest {
                   </user>
                 </previous_conversation>
                 </messages>
-            """.trimIndent())
+                """.trimIndent()
+            )
             // #3 Then: LLM generates a brief topic for research
             mockLLMAnswer(
                 Json.encodeToString(
@@ -54,7 +56,7 @@ class AgentGraphTest {
                         "What are the key scientific, environmental, and technological challenges involved in establishing a sustainable human presence on Mars, and what are the potential solutions or advancements needed to address these challenges?"
                     )
                 )
-            // #3 When: LLM is asked for generating research brief
+                // #3 When: LLM is asked for generating research brief
             ).onRequestContains("""The messages that have been exchanged so far between yourself and the user are:""".trimIndent())
         }
 

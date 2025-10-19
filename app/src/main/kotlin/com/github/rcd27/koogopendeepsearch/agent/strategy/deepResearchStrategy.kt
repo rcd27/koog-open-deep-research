@@ -14,7 +14,6 @@ fun getTodayStr(): String {
 fun deepResearchStrategy(
     askUserTool: (String) -> String
 ) = strategy<String, String>("deep_research") {
-
     val clarifyWithUser by subgraphClarifyWithUser(askUserTool)
 
     val writeResearchBrief by nodeWriteResearchBrief()

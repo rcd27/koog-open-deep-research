@@ -3,7 +3,7 @@ package com.github.rcd27.koogopendeepsearch
 import io.github.cdimascio.dotenv.dotenv
 
 object Config {
-    private val dotenv = dotenv() {
+    private val dotenv = dotenv {
         directory = "./app"
     }
 
