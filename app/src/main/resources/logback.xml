@@ -1,0 +1,22 @@
+<configuration>
+    <property name="RESET" value="${CONSOLE_COLOR_RESET:-\u001b[0m}"/>
+    <property name="FATAL_COLOR" value="${CONSOLE_COLOR_FATAL:-\u001b[1;31m}"/>
+    <property name="ERROR_COLOR" value="${CONSOLE_COLOR_ERROR:-\u001b[0;31m}"/>
+    <property name="WARN_COLOR" value="${CONSOLE_COLOR_WARN:-\u001b[0;33m}"/>
+    <property name="INFO_COLOR" value="${CONSOLE_COLOR_INFO:-\u001b[0;32m}"/>
+    <property name="DEBUG_COLOR" value="${CONSOLE_COLOR_DEBUG:-\u001b[0;36m}"/>
+    <property name="TRACE_COLOR" value="${CONSOLE_COLOR_TRACE:-\u001b[0;37m}"/>
+
+    <property name="CONSOLE_PATTERN"
+              value="[%highlight(%-5level)] %green(%logger{20}) %magenta(→) %msg%n"/>
+
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>${CONSOLE_PATTERN}</pattern>
+        </encoder>
+    </appender>
+
+    <root level="TRACE">
+        <appender-ref ref="CONSOLE"/>
+    </root>
+</configuration>

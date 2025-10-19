@@ -22,7 +22,8 @@ dependencies {
     implementation("io.opentelemetry:opentelemetry-exporter-logging")
 
     /** Logging */
-    // TODO: use io.github.oshai.kotlinlogging.KotlinLogging
+    implementation("io.github.oshai:kotlin-logging-jvm:7.0.0")
+    implementation("ch.qos.logback:logback-classic:1.5.13")
 
     /** Network */
     implementation("io.ktor:ktor-client-cio:3.3.1")
