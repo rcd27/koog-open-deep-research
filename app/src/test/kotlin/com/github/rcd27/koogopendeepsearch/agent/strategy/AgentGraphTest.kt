@@ -17,6 +17,17 @@ class AgentGraphTest {
     @Test
     fun `Test clarify_with_user subgraph succeeds if needClarification=false`() {
         val mockExecutor = getMockExecutor {
+            // #1 When: initial prompt contains empty chat history
+            mockLLMAnswer(
+                Json.encodeToString(
+                    ClarifyWithUser(
+                        needClarification = true,
+                        question = "Which specific insights do you want to receive?",
+                        verification = ""
+                    )
+                )
+            ).onRequestContains("<messages>\n<previous_conversation/>\n</messages>")
+            // #2 When: user clarifies topic etc.
             mockLLMAnswer(
                 Json.encodeToString(
                     ClarifyWithUser(
@@ -25,11 +36,13 @@ class AgentGraphTest {
                         "I totally understand what research you need"
                     )
                 )
-            ).asDefaultResponse
+            ).onRequestContains("Is it possible to live on Mars?")
         }
+
         val agent = AIAgent(
             promptExecutor = mockExecutor,
-            strategy = deepResearchStrategy { "STUB" },
+            // If clarification needed, subgraph calls askUserTool
+            strategy = deepResearchStrategy { "Is it possible to live on Mars?" },
             agentConfig = AIAgentConfig(
                 prompt = prompt("test") {},
                 model = OpenAIModels.Chat.GPT4o,
