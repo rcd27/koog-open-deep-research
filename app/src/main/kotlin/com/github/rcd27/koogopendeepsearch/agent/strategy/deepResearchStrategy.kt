@@ -17,12 +17,10 @@ fun deepResearchStrategy(
 
     val clarifyWithUser by subgraphClarifyWithUser(askUserTool)
 
-    val writeResearchBrief by node<String, String>("write_research_brief") { input ->
-        input
-    }
+    val writeResearchBrief by nodeWriteResearchBrief()
 
-    val researchSupervisor by node<String, String>("research_supervisor") { input ->
-        input
+    val researchSupervisor by node<ResearchQuestion, String>("research_supervisor") { input ->
+        input.researchBrief
     }
 
     val finalReportGeneration by node<String, String>("final_report_generation") { input ->
