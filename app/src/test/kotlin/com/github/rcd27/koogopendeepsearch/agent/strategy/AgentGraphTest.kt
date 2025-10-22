@@ -37,7 +37,7 @@ class AgentGraphTest {
                         "I totally understand what research you need"
                     )
                 )
-                // #2 When: user clarifies topic etc.
+                // #2 When: user clarifies the topic etc.
             ).onRequestContains(
                 """
                 <messages>
@@ -76,6 +76,11 @@ class AgentGraphTest {
                     val clarifyWithUser = assertSubgraphByName<String, String>("clarify_with_user")
                     // You need to have at least one verification
                     verifySubgraph(clarifyWithUser)
+
+                    /** SKIPPED: supervisor */
+
+                    val researcher = assertSubgraphByName<String, String>("researcher")
+                    verifySubgraph(researcher)
                 }
                 // Make sure you have `verifyStrategy` block not to catch NPE from agents-test
                 enableGraphTesting = true

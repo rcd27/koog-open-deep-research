@@ -42,6 +42,7 @@ suspend fun main() {
 
     val researchTools = ToolRegistry {
         tool(::thinkTool.asTool())
+        tool(tavilySearchTool)
     }
 
     // see: https://docs.koog.ai/parallel-node-execution/

@@ -20,6 +20,8 @@ fun deepResearchStrategy(
 
     val researchSupervisor by nodeResearchSupervisor()
 
+    val researcher by subgraphResearcher()
+
     val finalReportGeneration by node<String, String>("final_report_generation") { input ->
         input
     }
@@ -27,6 +29,7 @@ fun deepResearchStrategy(
     nodeStart.then(clarifyWithUser)
         .then(writeResearchBrief)
         .then(researchSupervisor)
+        .then(researcher)
         .then(finalReportGeneration)
         .then(nodeFinish)
 }
