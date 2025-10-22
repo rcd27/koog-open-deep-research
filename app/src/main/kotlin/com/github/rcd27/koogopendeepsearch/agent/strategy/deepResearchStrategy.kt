@@ -3,7 +3,7 @@ package com.github.rcd27.koogopendeepsearch.agent.strategy
 import ai.koog.agents.core.dsl.builder.strategy
 import ai.koog.agents.core.tools.annotations.LLMDescription
 import ai.koog.agents.core.tools.annotations.Tool
-import java.util.*
+import java.util.Date
 
 @Tool
 @LLMDescription("Get current date in a human-readable format.")
@@ -18,9 +18,7 @@ fun deepResearchStrategy(
 
     val writeResearchBrief by nodeWriteResearchBrief()
 
-    val researchSupervisor by node<ResearchQuestion, String>("research_supervisor") { input ->
-        input.researchBrief
-    }
+    val researchSupervisor by nodeResearchSupervisor()
 
     val finalReportGeneration by node<String, String>("final_report_generation") { input ->
         input
