@@ -44,50 +44,51 @@ val criteria_1 = listOf(
     "Investment account is a regular brokerage account",
 )
 
-fun testingStrategy(conversationPrompt: Prompt) = strategy<String, ResearchQuestion>("strategy_with_target_subgraph") {
+fun standaloneResearchBriefStrategy(conversationPrompt: Prompt) = strategy<String, ResearchQuestion>("strategy_with_target_subgraph") {
     val emulateChatHistory by node<String, String>("emulate_message_history") {
         llm.writeSession {
             prompt = conversationPrompt
         }
         "<bypass/>"
     }
-    val briefResearch: AIAgentNodeBase<String, ResearchQuestion> by nodeWriteResearchBrief()
-    nodeStart then emulateChatHistory then briefResearch then nodeFinish
+    val researchBrief: AIAgentNodeBase<String, ResearchQuestion> by nodeWriteResearchBrief()
+    nodeStart then emulateChatHistory then researchBrief then nodeFinish
 }
 
 class EvaluationTests {
 
-    // TODO: should be some EVALUATIONS, right? Stats, etc.
     @Test
-    fun `research brief evaluation for conversation_1`() = runBlocking { // FIXME: better evaluate in batches
-        val targetAgentConfig = AIAgentConfig.withSystemPrompt(
+    fun `research brief evaluation for conversation_1`() = runBlocking {
+        // FIXME: better evaluate in batches
+        val researchBriefAgentConfig = AIAgentConfig.withSystemPrompt(
             prompt = "EMPTY",
             maxAgentIterations = 50,
-            llm = OpenAIModels.CostOptimized.GPT4oMini // FIXME: overridden by inner nodes
+            llm = OpenAIModels.CostOptimized.GPT4oMini
         )
-        val evaluationAgent = AIAgent(
+        val researchBriefAgent = AIAgent(
             promptExecutor = openAISinglePromptExecutor,
-            strategy = testingStrategy(conversation_1),
-            agentConfig = targetAgentConfig,
+            strategy = standaloneResearchBriefStrategy(conversation_1),
+            agentConfig = researchBriefAgentConfig,
             toolRegistry = ToolRegistry.EMPTY
         )
-        val targetResearchQuestion = evaluationAgent.run("")
+        val targetResearchQuestion = researchBriefAgent.run("")
 
         val capturedCount = criteria_1.map { criterion ->
-            val agentConfig = AIAgentConfig.withSystemPrompt(
+            val evaluationAgentConfig = AIAgentConfig.withSystemPrompt(
                 prompt = "EMPTY",
                 maxAgentIterations = 50,
-                llm = OpenAIModels.CostOptimized.GPT4oMini // FIXME: overridden by inner nodes
+                llm = OpenAIModels.CostOptimized.GPT4oMini
             )
             val evaluationAgent = AIAgent(
                 promptExecutor = openAISinglePromptExecutor,
                 strategy = evaluateSuccessCriteriaStrategy(conversation_1),
-                agentConfig = agentConfig,
+                agentConfig = evaluationAgentConfig,
                 toolRegistry = ToolRegistry.EMPTY
             )
             val result = evaluationAgent.run(
                 EvaluateSuccessCriteriaInput(
-                    criterion, ConductResearch(targetResearchQuestion.researchBrief)
+                    criterion,
+                    ConductResearch(targetResearchQuestion.researchBrief)
                 )
             )
             result
@@ -98,7 +99,7 @@ class EvaluationTests {
 
         val score = capturedCount.toDouble() / criteria_1.size
         println("Score: $score")
-        assert(score > 0.7)
+        assert(score > 0.8)
     }
 }
 
@@ -223,17 +224,19 @@ data class EvaluateSuccessCriteriaInput(
  */
 fun evaluateSuccessCriteriaStrategy(messageHistory: Prompt) =
     strategy<EvaluateSuccessCriteriaInput, Criteria>("research_brief_evaluation") {
-        /* This is basically copy-paste from LLMAsJudge */
-        val judge by node<EvaluateSuccessCriteriaInput, Criteria>("research_brief_evaluation") { input ->
+        /* This is basically copy-paste from LLMAsJudge but with Criteria output */
+        val judge by node<EvaluateSuccessCriteriaInput, Criteria>("judge") { input ->
             llm.writeSession {
                 val initialPrompt = prompt.copy()
-                val initialModel = model
+                val initialModel = model.copy()
 
                 prompt = prompt("critic") {
                     val combinedMessage = messageHistory.messages.foldPromptMessages()
                     system(briefCriteriaPrompt(input.criterion, input.research))
                     user(combinedMessage)
                 }
+
+                model = OpenAIModels.Chat.GPT4o // <<<<< ANOTHER MODEL FOR JUDGING
 
                 val result = requestLLMStructured<Criteria>(
                     examples = emptyList(),
