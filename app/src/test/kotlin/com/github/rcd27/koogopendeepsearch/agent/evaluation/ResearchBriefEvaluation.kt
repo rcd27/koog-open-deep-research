@@ -8,6 +8,7 @@ import ai.koog.agents.core.agent.entity.AIAgentSubgraph
 import ai.koog.agents.core.dsl.builder.strategy
 import ai.koog.agents.core.tools.ToolRegistry
 import ai.koog.agents.core.tools.annotations.LLMDescription
+import ai.koog.prompt.dsl.Prompt
 import ai.koog.prompt.dsl.prompt
 import ai.koog.prompt.executor.clients.openai.OpenAIModels
 import ai.koog.prompt.message.Message
@@ -28,15 +29,25 @@ import kotlin.test.Test
  * see: https://academy.langchain.com/courses/take/deep-research-with-langgraph/lessons/67648977-scoping
  */
 
-val testingStrategy = strategy<String, ResearchQuestion>("strategy_with_target_subgraph") {
+val conversation_1 = prompt("blabla") {
+    user("What's the best way to invest \$50,000 for retirement?")
+    assistant("Could you please provide some additional information to tailor the investment advice for your \$50,000 retirement goal? Specifically:\\n Your current age or desired retirement age\\n Your risk tolerance (low, medium, high)\\n Any preferences for investment types (e.g., stocks, bonds, mutual funds, real estate)\\n Whether you are investing through a tax-advantaged account (e.g., IRA, 401(k)) or a regular brokerage account\\n This will help me provide more personalized and relevant suggestions.")
+    user("I'm 25 and I want to retire by 45. My risk tolerance is high right now but I think will decrease over time. I have heard that stocks and ETFs are a good choice, but I'm open to anything. And I already have a 401k, but this would just be through a regular brokerage account.")
+}
+
+val criteria_1 = listOf(
+    "Current age is 25",
+    "Desired retirement age is 45",
+    "Current risk tolerance is high",
+    "Interested in investing in stocks and ETFs",
+    "Open to forms of investment beyond stocks and ETFs",
+    "Investment account is a regular brokerage account",
+)
+
+fun testingStrategy(conversationPrompt: Prompt) = strategy<String, ResearchQuestion>("strategy_with_target_subgraph") {
     val emulateChatHistory by node<String, String>("emulate_message_history") {
         llm.writeSession {
-            updatePrompt {
-                // FIXME: replace either this, or List<Message>
-                user("What's the best way to invest $50,000 for retirement?")
-                assistant("Could you please provide some additional information to tailor the investment advice for your \$50,000 retirement goal? Specifically:\\n Your current age or desired retirement age\\n Your risk tolerance (low, medium, high)\\n Any preferences for investment types (e.g., stocks, bonds, mutual funds, real estate)\\n Whether you are investing through a tax-advantaged account (e.g., IRA, 401(k)) or a regular brokerage account\\n This will help me provide more personalized and relevant suggestions.")
-                user("I'm 25 and I want to retire by 45. My risk tolerance is high right now but I think will decrease over time. I have heard that stocks and ETFs are a good choice, but I'm open to anything. And I already have a 401k, but this would just be through a regular brokerage account.")
-            }
+            prompt = conversationPrompt
         }
         "<bypass/>"
     }
@@ -48,7 +59,7 @@ class EvaluationTests {
 
     // TODO: should be some EVALUATIONS, right? Stats, etc.
     @Test
-    fun `research brief evaluation`() = runBlocking { // FIXME: better evaluate in batches
+    fun `research brief evaluation for conversation_1`() = runBlocking { // FIXME: better evaluate in batches
         val targetAgentConfig = AIAgentConfig.withSystemPrompt(
             prompt = "EMPTY",
             maxAgentIterations = 50,
@@ -56,13 +67,13 @@ class EvaluationTests {
         )
         val evaluationAgent = AIAgent(
             promptExecutor = openAISinglePromptExecutor,
-            strategy = testingStrategy,
+            strategy = testingStrategy(conversation_1),
             agentConfig = targetAgentConfig,
             toolRegistry = ToolRegistry.EMPTY
         )
         val targetResearchQuestion = evaluationAgent.run("")
 
-        for (criterion in criteria1) {
+        val capturedCount = criteria_1.map { criterion ->
             val agentConfig = AIAgentConfig.withSystemPrompt(
                 prompt = "EMPTY",
                 maxAgentIterations = 50,
@@ -79,26 +90,17 @@ class EvaluationTests {
                     criterion, ConductResearch(targetResearchQuestion.researchBrief)
                 )
             )
-            println("RESULT: $result")
+            result
         }
+            .fold(0) { acc, i ->
+                if (i.isCaptured) acc + 1 else acc
+            }
+
+        val score = capturedCount.toDouble() / criteria_1.size
+        println("Score: $score")
+        assert(score > 0.7)
     }
 }
-
-val conversation_1: List<Message> = listOf(
-    Message.User(
-        "What's the best way to invest $50,000 for retirement?",
-        RequestMetaInfo(testClock.now())
-    ),
-    Message.Assistant(
-        "Could you please provide some additional information to tailor the investment advice for your \$50,000 " +
-            "retirement goal? Specifically:\\n Your current age or desired retirement age\\n Your risk tolerance (low, medium, high)\\n Any preferences for investment types (e.g., stocks, bonds, mutual funds, real estate)\\n Whether you are investing through a tax-advantaged account (e.g., IRA, 401(k)) or a regular brokerage account\\n This will help me provide more personalized and relevant suggestions.",
-        ResponseMetaInfo(testClock.now())
-    ),
-    Message.User(
-        "I'm 25 and I want to retire by 45. My risk tolerance is high right now but I think will decrease over time. I have heard that stocks and ETFs are a good choice, but I'm open to anything. And I already have a 401k, but this would just be through a regular brokerage account.",
-        RequestMetaInfo(testClock.now())
-    )
-)
 
 val conversation_2: List<Message> = listOf(
     Message.User(
@@ -113,16 +115,6 @@ val conversation_2: List<Message> = listOf(
         "I'd prefer to live in Chelsea, Flatiron, or West Village. I'm looking for a 2 bed 2 bath, and I am looking for monthly rent below 7k. I'd like this to be a doorman building and have an in unit washer and dryer, but it's okay if there's no washer dryer. It's a plus if the building has a gym. And I'd like to move in in September 2025.",
         RequestMetaInfo(testClock.now())
     )
-)
-
-// criterion in criteria1
-val criteria1 = listOf(
-    "Current age is 25",
-    "Desired retirement age is 45",
-    "Current risk tolerance is high",
-    "Interested in investing in stocks and ETFs",
-    "Open to forms of investment beyond stocks and ETFs",
-    "Investment account is a regular brokerage account",
 )
 
 val criteria2 = listOf(
@@ -226,7 +218,10 @@ data class EvaluateSuccessCriteriaInput(
     val research: ConductResearch
 )
 
-fun evaluateSuccessCriteriaStrategy(messageHistory: List<Message>) =
+/**
+ * LLM judge that evaluates whether research briefs capture specific criteria.
+ */
+fun evaluateSuccessCriteriaStrategy(messageHistory: Prompt) =
     strategy<EvaluateSuccessCriteriaInput, Criteria>("research_brief_evaluation") {
         /* This is basically copy-paste from LLMAsJudge */
         val judge by node<EvaluateSuccessCriteriaInput, Criteria>("research_brief_evaluation") { input ->
@@ -235,11 +230,8 @@ fun evaluateSuccessCriteriaStrategy(messageHistory: List<Message>) =
                 val initialModel = model
 
                 prompt = prompt("critic") {
-                    val combinedMessage = messageHistory.foldPromptMessages()
-
-                    // Put Critic Task as a System instruction
+                    val combinedMessage = messageHistory.messages.foldPromptMessages()
                     system(briefCriteriaPrompt(input.criterion, input.research))
-                    // And rest of the history -- in a combined XML message
                     user(combinedMessage)
                 }
 
