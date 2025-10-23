@@ -3,9 +3,7 @@ package com.github.rcd27.koogopendeepsearch
 import io.github.cdimascio.dotenv.dotenv
 
 object Config {
-    private val dotenv = dotenv {
-        directory = "./app"
-    }
+    private val dotenv = dotenv()
 
     val PROXY_URL: String? = dotenv["PROXY_URL"]
     val TAVILY_API_KEY = dotenv["TAVILY_API_KEY"] ?: error("No TAVILY_API_KEY in .env file")

@@ -9,7 +9,7 @@ import kotlinx.serialization.Serializable
 fun leadResearcherPrompt(date: String) =
     """You are a research supervisor. Your job is to conduct research by calling the "ConductResearch" tool. 
 
-For context, today's date is ${date}.
+For context, today's date is $date.
 
 <Task>
 Your focus is to call the "ConductResearch" tool to conduct research against the overall research question passed in by the user. 
@@ -66,7 +66,8 @@ After each ConductResearch tool call, use think_tool to analyze the results:
 - A separate agent will write the final report - you just need to gather information
 - When calling ConductResearch, provide complete standalone instructions - sub-agents can't see other agents' work
 - Do NOT use acronyms or abbreviations in your research questions, be very clear and specific
-</Scaling Rules>""".trimIndent()
+</Scaling Rules>
+    """.trimIndent()
 
 @Serializable
 data class ConductResearch(

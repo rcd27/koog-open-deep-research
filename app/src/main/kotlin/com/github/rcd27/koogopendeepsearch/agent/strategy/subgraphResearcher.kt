@@ -14,7 +14,7 @@ import ai.koog.prompt.message.Message
 fun researcherPrompt(date: String, mcpPrompt: String) = """
 You are a research assistant conducting research on the user's input topic.
 
-For context, today's date is ${date}.
+For context, today's date is $date.
 
 <Task>
 Your job is to use tools to gather information about the user's input topic.
@@ -64,6 +64,7 @@ After each search tool call, use think_tool to analyze the results:
 fun AIAgentSubgraphBuilderBase<*, *>.subgraphResearcher(
     maxStructuredOutputRetries: Int = 3
 ): AIAgentSubgraphDelegate<String, String> = subgraph("researcher") {
+    // note: this is reAct strategy from Koog. Should write evaluations!!!
     require(maxStructuredOutputRetries > 0) { "Output retries must be greater than 0" }
     val researchStepKey = createStorageKey<Int>("reasoning_step")
     val nodeSetup by node<String, String> {

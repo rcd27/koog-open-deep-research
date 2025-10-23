@@ -3,7 +3,6 @@ package com.github.rcd27.koogopendeepsearch.agent.tools
 import ai.koog.agents.core.tools.annotations.LLMDescription
 import ai.koog.agents.core.tools.annotations.Tool
 
-
 @Tool
 @LLMDescription(
     """
