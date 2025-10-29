@@ -135,7 +135,18 @@ fun standaloneResearchStrategy(conversationPrompt: Prompt) =
         }
         val researcher: AIAgentNodeBase<String, String> by subgraphResearcher(3)
         val shouldContinue by nodeLLMRequestStructured<ShouldContinue>()
-        nodeStart then emulateChatHistory then researcher then shouldContinue
+        nodeStart then emulateChatHistory then researcher
+        edge(
+            researcher forwardTo shouldContinue
+                transformed { input ->
+                    llm.writeSession {
+                        updatePrompt {
+                            user("Make a decision, if research is finished according to the information I've gathered, or continue researching.")
+                        }
+                    }
+                    input
+                }
+        )
         edge(
             shouldContinue forwardTo nodeFinish transformed { it.getOrNull()!!.structure }
         )
@@ -161,6 +172,7 @@ class ResearcherEvaluation {
         println(targetResearchQuestion)
     }
 
+    // FIXME: LLM wants to research more
     @Test
     fun `Should stop research`(): Unit = runBlocking {
         val researchAgentConfig = AIAgentConfig.withSystemPrompt(

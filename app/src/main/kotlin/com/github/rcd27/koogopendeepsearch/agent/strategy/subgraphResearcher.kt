@@ -1,14 +1,13 @@
 package com.github.rcd27.koogopendeepsearch.agent.strategy
 
-import ai.koog.agents.core.agent.entity.createStorageKey
+import ai.koog.agents.core.agent.singleRunStrategy
 import ai.koog.agents.core.dsl.builder.AIAgentSubgraphBuilderBase
 import ai.koog.agents.core.dsl.builder.AIAgentSubgraphDelegate
 import ai.koog.agents.core.dsl.builder.forwardTo
-import ai.koog.agents.core.dsl.extension.nodeExecuteTool
-import ai.koog.agents.core.dsl.extension.onAssistantMessage
-import ai.koog.agents.core.dsl.extension.onToolCall
-import ai.koog.agents.core.environment.ReceivedToolResult
-import ai.koog.agents.core.environment.result
+import ai.koog.agents.core.dsl.extension.nodeExecuteMultipleTools
+import ai.koog.agents.core.dsl.extension.nodeLLMSendMultipleToolResults
+import ai.koog.agents.core.dsl.extension.onMultipleAssistantMessages
+import ai.koog.agents.core.dsl.extension.onMultipleToolCalls
 import ai.koog.prompt.message.Message
 
 fun researcherPrompt(date: String, mcpPrompt: String) = """
@@ -61,61 +60,38 @@ After each search tool call, use think_tool to analyze the results:
 </Show Your Thinking>
 """.trimIndent()
 
+val x = singleRunStrategy()
+
 fun AIAgentSubgraphBuilderBase<*, *>.subgraphResearcher(
     maxStructuredOutputRetries: Int = 3
 ): AIAgentSubgraphDelegate<String, String> = subgraph("researcher") {
-    // note: this is reAct strategy from Koog. Should write evaluations!!!
-    require(maxStructuredOutputRetries > 0) { "Output retries must be greater than 0" }
-    val researchStepKey = createStorageKey<Int>("reasoning_step")
-    val nodeSetup by node<String, String> {
-        storage.set(researchStepKey, 0)
-        it
-    }
-    val nodeCallLLM by node<Unit, Message.Response> {
+    val nodeCallLLM by node<String, List<Message.Response>> {
         llm.writeSession {
             updatePrompt {
                 system(researcherPrompt(date = getTodayStr(), ""))
             }
-            requestLLM()
+            requestLLMMultiple()
         }
     }
-    val nodeExecuteTool by nodeExecuteTool()
 
-    val reasoningPrompt = "Please give your thoughts about the task and plan the next steps."
-    val nodeCallLLMReasonInput by node<String, Unit> { stageInput ->
-        llm.writeSession {
-            updatePrompt {
-                user(stageInput)
-                user(reasoningPrompt)
-            }
+    val nodeExecuteTool by nodeExecuteMultipleTools(parallelTools = true)
+    val nodeSendToolResult by nodeLLMSendMultipleToolResults()
 
-            requestLLMWithoutTools()
-        }
-    }
-    val nodeCallLLMReason by node<ReceivedToolResult, Unit> { result ->
-        val reasoningStep = storage.getValue(researchStepKey)
-        llm.writeSession {
-            updatePrompt {
-                tool {
-                    result(result)
-                }
-            }
+    edge(nodeStart forwardTo nodeCallLLM)
+    edge(nodeCallLLM forwardTo nodeExecuteTool onMultipleToolCalls { true })
+    edge(
+        nodeCallLLM forwardTo nodeFinish
+            onMultipleAssistantMessages { true }
+            transformed { it.joinToString("\n") { message -> message.content } }
+    )
 
-            if (reasoningStep % maxStructuredOutputRetries == 0) {
-                updatePrompt {
-                    user(reasoningPrompt)
-                }
-                requestLLMWithoutTools()
-            }
-        }
-        storage.set(researchStepKey, reasoningStep + 1)
-    }
+    edge(nodeExecuteTool forwardTo nodeSendToolResult)
 
-    edge(nodeStart forwardTo nodeSetup)
-    edge(nodeSetup forwardTo nodeCallLLMReasonInput)
-    edge(nodeCallLLMReasonInput forwardTo nodeCallLLM)
-    edge(nodeCallLLM forwardTo nodeExecuteTool onToolCall { true })
-    edge(nodeCallLLM forwardTo nodeFinish onAssistantMessage { true })
-    edge(nodeExecuteTool forwardTo nodeCallLLMReason)
-    edge(nodeCallLLMReason forwardTo nodeCallLLM)
+    edge(
+        nodeSendToolResult forwardTo nodeFinish
+            onMultipleAssistantMessages { true }
+            transformed { it.joinToString("\n") { message -> message.content } }
+    )
+
+    edge(nodeSendToolResult forwardTo nodeExecuteTool onMultipleToolCalls { true })
 }
