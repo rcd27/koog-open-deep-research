@@ -13,7 +13,7 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3")
 
     /** Koog */
-    implementation("ai.koog:koog-agents:0.5.1")
+    implementation("ai.koog:koog-agents:0.5.2")
 
     /** OpenTelemetry */
     implementation(platform("io.opentelemetry:opentelemetry-bom:1.53.0"))

@@ -4,6 +4,7 @@ import ai.koog.agents.core.agent.AIAgent
 import ai.koog.agents.core.agent.config.AIAgentConfig
 import ai.koog.agents.core.tools.ToolRegistry
 import ai.koog.agents.core.tools.reflect.asTool
+import ai.koog.agents.features.opentelemetry.attribute.CustomAttribute
 import ai.koog.agents.features.opentelemetry.feature.OpenTelemetry
 import ai.koog.agents.features.opentelemetry.integration.langfuse.addLangfuseExporter
 import ai.koog.agents.mcp.McpToolRegistryProvider
@@ -65,7 +66,11 @@ suspend fun main() {
             addLangfuseExporter(
                 langfuseUrl = Config.LANGFUSE_HOST,
                 langfusePublicKey = Config.LANGFUSE_PUBLIC_KEY,
-                langfuseSecretKey = Config.LANGFUSE_SECRET_KEY
+                langfuseSecretKey = Config.LANGFUSE_SECRET_KEY,
+                traceAttributes = listOf(
+                    CustomAttribute("langfuse.trace.input", "TEST_INPUT"), // TODO: get actual input
+                    CustomAttribute("langfuse.trace.output", "TEST_OUTPUT") // TODO: get actual output
+                )
             )
         }
     }
