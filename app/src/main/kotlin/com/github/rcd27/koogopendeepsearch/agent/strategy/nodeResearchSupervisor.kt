@@ -70,9 +70,9 @@ After each ConductResearch tool call, use think_tool to analyze the results:
     """.trimIndent()
 
 @Serializable
-data class ConductResearch(
+data class ConductResearch<T>(
     @property:LLMDescription("Call this tool to conduct research on a specific topic.")
-    val researchTopic: String
+    val researchTopic: T
 )
 
 @Serializable
