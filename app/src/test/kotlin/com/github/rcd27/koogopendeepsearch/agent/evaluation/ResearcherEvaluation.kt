@@ -1,21 +1,20 @@
 package com.github.rcd27.koogopendeepsearch.agent.evaluation
 
-import ai.koog.agents.core.agent.AIAgent
-import ai.koog.agents.core.agent.config.AIAgentConfig
 import ai.koog.agents.core.agent.entity.AIAgentNodeBase
 import ai.koog.agents.core.dsl.builder.forwardTo
 import ai.koog.agents.core.dsl.builder.strategy
 import ai.koog.agents.core.dsl.extension.nodeLLMRequestStructured
-import ai.koog.agents.core.tools.ToolRegistry
 import ai.koog.agents.core.tools.annotations.LLMDescription
 import ai.koog.prompt.dsl.Prompt
 import ai.koog.prompt.dsl.prompt
-import ai.koog.prompt.executor.clients.openai.OpenAIModels
-import com.github.rcd27.koogopendeepsearch.agent.executor.openAISinglePromptExecutor
+import com.github.rcd27.koogopendeepsearch.DeepResearchAgent
 import com.github.rcd27.koogopendeepsearch.agent.strategy.subgraphResearcher
+import com.github.rcd27.koogopendeepsearch.agent.utils.foldPromptMessages
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
 import org.junit.jupiter.api.Test
+import java.io.File
 
 val messagesShouldContinue = prompt("agent-should-continue") {
     user("What are the top coffee shops in San Francisco based on coffee quality?")
@@ -46,7 +45,7 @@ val messagesShouldContinue = prompt("agent-should-continue") {
                 {"args": {"reflection": "Analysis of search results: The information I found focuses on general cafe 
                 features like wifi, ambiance, custom blends, and seating - but lacks specific coffee quality metrics.
                  The user specifically asked for evaluation based on coffee quality, which would require expert reviews, professional ratings, specialty certifications, or quality-focused customer feedback. I need to search specifically for coffee quality assessments, Coffee Review scores, specialty coffee credentials, or expert evaluations of SF coffee shops. The current information is insufficient to answer the user's question about coffee quality."}}
-            """,
+            """.trimIndent(),
             tool = "think_tool"
         )
         result(
@@ -119,6 +118,7 @@ val messagesShouldStop = prompt("agent-should-stop") {
     }
 }
 
+// TODO: replace with llmJudge
 @Serializable
 data class ShouldContinue(
     @property:LLMDescription("Should continue research?")
@@ -139,13 +139,13 @@ fun standaloneResearchStrategy(conversationPrompt: Prompt) =
         edge(
             researcher forwardTo shouldContinue
                 transformed { input ->
-                    llm.writeSession {
-                        updatePrompt {
-                            user("Make a decision, if research is finished according to the information I've gathered, or continue researching.")
-                        }
+                llm.writeSession {
+                    updatePrompt {
+                        user("Make a decision, if research is finished according to the information I've gathered, or continue researching.")
                     }
-                    input
                 }
+                input
+            }
         )
         edge(
             shouldContinue forwardTo nodeFinish transformed { it.getOrNull()!!.structure }
@@ -155,39 +155,25 @@ fun standaloneResearchStrategy(conversationPrompt: Prompt) =
 class ResearcherEvaluation {
 
     @Test
-    fun `Should continue research`(): Unit = runBlocking {
-        val researchAgentConfig = AIAgentConfig.withSystemPrompt(
-            prompt = "EMPTY",
-            maxAgentIterations = 50,
-            llm = OpenAIModels.CostOptimized.GPT4oMini
-        )
-        val researchAgent = AIAgent(
-            promptExecutor = openAISinglePromptExecutor,
-            strategy = standaloneResearchStrategy(messagesShouldContinue),
-            agentConfig = researchAgentConfig,
-            toolRegistry = ToolRegistry.EMPTY
-        )
-        val targetResearchQuestion = researchAgent.run("")
-        assert(targetResearchQuestion.shouldContinue)
-        println(targetResearchQuestion)
+    fun `print prompts to file`() {
+        File("./messagesShouldContinue.txt").run {
+            val json = Json { prettyPrint = true }
+            val output = messagesShouldContinue.messages.foldPromptMessages()
+            writeText(output)
+        }
     }
 
-    // FIXME: LLM wants to research more
+    @Test
+    fun `Should continue research`(): Unit = runBlocking {
+        val researcherAgent = DeepResearchAgent.withStrategy(standaloneResearchStrategy(messagesShouldContinue))
+        val targetResearch = researcherAgent.run("")
+        assert(targetResearch.shouldContinue)
+    }
+
     @Test
     fun `Should stop research`(): Unit = runBlocking {
-        val researchAgentConfig = AIAgentConfig.withSystemPrompt(
-            prompt = "EMPTY",
-            maxAgentIterations = 50,
-            llm = OpenAIModels.CostOptimized.GPT4oMini
-        )
-        val researchAgent = AIAgent(
-            promptExecutor = openAISinglePromptExecutor,
-            strategy = standaloneResearchStrategy(messagesShouldStop),
-            agentConfig = researchAgentConfig,
-            toolRegistry = ToolRegistry.EMPTY
-        )
-        val targetResearchQuestion = researchAgent.run("")
-        assert(!targetResearchQuestion.shouldContinue)
-        println(targetResearchQuestion)
+        val researcherAgent = DeepResearchAgent.withStrategy(standaloneResearchStrategy(messagesShouldStop))
+        val targetResearch = researcherAgent.run("")
+        assert(!targetResearch.shouldContinue)
     }
 }
