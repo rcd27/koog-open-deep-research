@@ -30,11 +30,13 @@ import kotlin.test.Test
  */
 
 val conversation_1 = prompt("blabla") {
-    user("What's the best way to invest \$50,000 for retirement?")
-    assistant("Could you please provide some additional information to tailor the investment advice for your \$50,000 retirement goal? Specifically:\\n Your current age or desired retirement age\\n Your risk tolerance (low, medium, high)\\n Any preferences for investment types (e.g., stocks, bonds, mutual funds, real estate)\\n Whether you are investing through a tax-advantaged account (e.g., IRA, 401(k)) or a regular brokerage account\\n This will help me provide more personalized and relevant suggestions.")
+    user("What's the best way to invest $50,000 for retirement?")
+    assistant("Could you please provide some additional information to tailor the investment advice for your $50,000 retirement goal? Specifically:\\n Your current age or desired retirement age\\n Your risk tolerance (low, medium, high)\\n Any preferences for investment types (e.g., stocks, bonds, mutual funds, real estate)\\n Whether you are investing through a tax-advantaged account (e.g., IRA, 401(k)) or a regular brokerage account\\n This will help me provide more personalized and relevant suggestions.")
     user("I'm 25 and I want to retire by 45. My risk tolerance is high right now but I think will decrease over time. I have heard that stocks and ETFs are a good choice, but I'm open to anything. And I already have a 401k, but this would just be through a regular brokerage account.")
 }
 
+
+// TODO: this can be moved to promptfoo llm-rubric test-case
 val criteria_1 = listOf(
     "Current age is 25",
     "Desired retirement age is 45",
@@ -127,6 +129,7 @@ val criteria2 = listOf(
     "Move in date is September 2025"
 )
 
+// TODO: llm-rubric assert value
 fun briefCriteriaPrompt(criterion: String, researchBrief: ConductResearch) = """
 <role>                                                                                                         
 You are an expert research brief evaluator specializing in assessing whether generated research briefs         
