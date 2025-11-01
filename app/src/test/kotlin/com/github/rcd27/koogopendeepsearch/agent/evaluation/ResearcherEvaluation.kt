@@ -1,17 +1,13 @@
 package com.github.rcd27.koogopendeepsearch.agent.evaluation
 
 import ai.koog.agents.core.agent.entity.AIAgentNodeBase
-import ai.koog.agents.core.dsl.builder.forwardTo
 import ai.koog.agents.core.dsl.builder.strategy
-import ai.koog.agents.core.dsl.extension.nodeLLMRequestStructured
-import ai.koog.agents.core.tools.annotations.LLMDescription
 import ai.koog.prompt.dsl.Prompt
 import ai.koog.prompt.dsl.prompt
 import com.github.rcd27.koogopendeepsearch.DeepResearchAgent
 import com.github.rcd27.koogopendeepsearch.agent.strategy.subgraphResearcher
 import com.github.rcd27.koogopendeepsearch.agent.utils.foldPromptMessages
 import kotlinx.coroutines.runBlocking
-import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import org.junit.jupiter.api.Test
 import java.io.File
@@ -118,15 +114,8 @@ val messagesShouldStop = prompt("agent-should-stop") {
     }
 }
 
-// TODO: replace with llmJudge
-@Serializable
-data class ShouldContinue(
-    @property:LLMDescription("Should continue research?")
-    val shouldContinue: Boolean
-)
-
 fun standaloneResearchStrategy(conversationPrompt: Prompt) =
-    strategy<String, ShouldContinue>("standalone_research_strategy") {
+    strategy<String, String>("standalone_research_strategy") {
         val emulateChatHistory by node<String, String>("emulate_message_history") {
             llm.writeSession {
                 prompt = conversationPrompt
@@ -134,22 +123,7 @@ fun standaloneResearchStrategy(conversationPrompt: Prompt) =
             "<bypass/>"
         }
         val researcher: AIAgentNodeBase<String, String> by subgraphResearcher(3)
-        val shouldContinue by nodeLLMRequestStructured<ShouldContinue>()
-        nodeStart then emulateChatHistory then researcher
-        edge(
-            researcher forwardTo shouldContinue
-                transformed { input ->
-                    llm.writeSession {
-                        updatePrompt {
-                            user("Make a decision, if research is finished according to the information I've gathered, or continue researching.")
-                        }
-                    }
-                    input
-                }
-        )
-        edge(
-            shouldContinue forwardTo nodeFinish transformed { it.getOrNull()!!.structure }
-        )
+        nodeStart then emulateChatHistory then researcher then nodeFinish
     }
 
 class ResearcherEvaluation {
@@ -166,14 +140,180 @@ class ResearcherEvaluation {
     @Test
     fun `Should continue research`(): Unit = runBlocking {
         val researcherAgent = DeepResearchAgent.withStrategy(standaloneResearchStrategy(messagesShouldContinue))
-        val targetResearch = researcherAgent.run("")
-        assert(targetResearch.shouldContinue)
+        researcherAgent.evaluateWithRubric(
+            input = "",
+            criteria = criteria1,
+            criterionPromptBuilder = ::researcherCriterionPrompt,
+            messageHistory = messagesShouldContinue
+        ) { score: Double ->
+            assert(score < 0.8) // we treat this scoring as bad research
+        }
     }
 
     @Test
     fun `Should stop research`(): Unit = runBlocking {
         val researcherAgent = DeepResearchAgent.withStrategy(standaloneResearchStrategy(messagesShouldStop))
-        val targetResearch = researcherAgent.run("")
-        assert(!targetResearch.shouldContinue)
+        researcherAgent.evaluateWithRubric(
+            input = "",
+            criteria = criteria1,
+            criterionPromptBuilder = ::researcherCriterionPrompt,
+            messageHistory = messagesShouldStop
+        ) { score: Double ->
+            assert(score >= 0.8) // 80%+ is good
+        }
+    }
+
+    private companion object {
+        val criteria1 = listOf(
+            "Search Strategy: Uses appropriate number of searches (2-5), progresses from broad to narrow queries, and avoids redundancy",
+            "Reflection Discipline: Consistently uses think_tool after each search (not in parallel) to analyze results and plan next steps",
+            "Answer Quality: Gathers sufficient relevant sources (3+) and stops when question can be answered comprehensively",
+            "Tool Compliance: Properly uses tavily_search for searches, think_tool only for reflection, and respects all tool-calling constraints",
+            "Research Judgement: Demonstrates when to stop—balances thoroughness with efficiency, avoiding both premature stopping and over-researching"
+        )
+
+        fun researcherCriterionPrompt(input: EvaluationInput<String>): String = """
+<role>
+You are an expert research agent evaluator specializing in assessing the quality, efficiency, and effectiveness 
+of AI agents conducting information gathering tasks. You evaluate based on concrete evidence from tool usage 
+patterns and research outcomes.
+</role>
+
+<task>
+Evaluate the research agent's performance against the specific criterion provided. Assign a score from 0.0 to 1.0 
+with detailed reasoning based on observable behavior.
+</task>
+
+<evaluation_context>
+Research agents must balance thoroughness with efficiency, demonstrate strategic thinking, and produce 
+high-quality answers. Poor research patterns (excessive searching, lack of reflection, premature stopping) 
+lead to incomplete or inefficient research. Your evaluation directly impacts research quality improvement.
+</evaluation_context>
+
+<agent_final_answer>
+${input.targetToJudge}
+</agent_final_answer>
+
+<criterion_to_evaluate>
+${input.criterion}
+</criterion_to_evaluate>
+
+<evaluation_guidelines>
+
+**Scoring Rubric:**
+
+**0.0-0.3 (POOR)** - Criterion clearly violated or unmet:
+- Critical failures in the evaluated aspect
+- Clear evidence of ineffective or incorrect behavior
+- Multiple violations of best practices
+- Outcome significantly misses requirements
+
+**0.4-0.6 (PARTIAL)** - Criterion partially met with significant gaps:
+- Some compliance but with notable issues
+- Inconsistent application of best practices
+- Missing important elements of the criterion
+- Outcome has substantial room for improvement
+
+**0.7-0.8 (GOOD)** - Criterion well met with minor issues:
+- Strong compliance with criterion requirements
+- Best practices generally followed
+- Minor inefficiencies or missed optimizations
+- Outcome meets expectations with small gaps
+
+**0.9-1.0 (EXCELLENT)** - Criterion exemplarily met:
+- Exceptional performance on all criterion aspects
+- Optimal behavior and decision-making
+- No significant improvements needed
+- Outcome exceeds expectations
+
+**Evidence-Based Evaluation:**
+- Count actual tool calls (searches, think_tool usage)
+- Track query progression (broad → narrow)
+- Identify reflection patterns (when and quality)
+- Assess source quality and relevance
+- Evaluate stopping decision appropriateness
+
+<evaluation_examples>
+
+Example 1 - Search Efficiency:
+Tool History: "tavily_search('climate change'), think_tool('found overview, need specifics'), 
+tavily_search('climate change agriculture 2024'), think_tool('good sources, can answer'), [stopped]"
+Question Complexity: Moderate
+SCORE: 0.85
+REASONING: Agent used 2 searches for moderate question—efficient. Good broad-to-narrow progression. 
+Appropriate stopping after gathering sufficient sources. Minor: could have searched one more specific aspect.
+
+Example 2 - Reflection Quality:
+Tool History: "tavily_search('AI trends'), tavily_search('machine learning 2024'), 
+tavily_search('AI applications'), tavily_search('AI companies'), think_tool('found lots of info')"
+SCORE: 0.25
+REASONING: Agent made 4 searches before using think_tool once. No reflection after each search as required. 
+Final reflection was superficial. Critical violation of reflection discipline.
+
+Example 3 - Answer Completeness:
+Sources Found: 6 high-quality articles directly addressing question aspects
+Final Answer: Comprehensive response citing all 6 sources, addresses all question parts
+SCORE: 0.95
+REASONING: Agent gathered 6 relevant sources (exceeds 3+ requirement). Answer thoroughly addresses question 
+with proper citations. Excellent completeness and source usage.
+
+Example 4 - Tool Usage Discipline:
+Tool History: "tavily_search('topic') + think_tool('planning next search') [parallel], 
+tavily_search('specific aspect')"
+SCORE: 0.15
+REASONING: Critical violation—agent called think_tool in parallel with tavily_search, explicitly forbidden. 
+This indicates failure to follow tool usage constraints. Major compliance issue.
+
+Example 5 - Stopping Criterion:
+Tool History: 5 searches made, last 2 returned very similar information, question answerable after search 3
+Final behavior: Continued searching until budget exhausted
+SCORE: 0.40
+REASONING: Agent failed to stop when appropriate (after 3 searches with sufficient info). Over-researched 
+by making 2 redundant searches. Demonstrated poor judgment about when research is complete.
+
+</evaluation_examples>
+</evaluation_guidelines>
+
+<output_instructions>
+1. **Analyze the tool call history systematically:**
+   - Count and categorize tool calls
+   - Identify patterns in search queries
+   - Track think_tool usage and quality
+   - Note stopping point and reasoning
+
+2. **Extract concrete evidence:**
+   - Quote specific tool calls that support your evaluation
+   - Reference exact search queries and their progression
+   - Point to specific think_tool reflections (or absence)
+   - Identify the stopping point and what information was available
+
+3. **Match evidence to criterion:**
+   - Does the behavior align with criterion requirements?
+   - Are there violations of specified constraints?
+   - How does the outcome compare to expectations?
+
+4. **Assign score based on rubric:**
+   - Use the 0.0-1.0 scale with rubric guidelines
+   - Be precise (e.g., 0.75, not just "0.7-0.8")
+   - Justify the score with specific evidence
+
+5. **Be objective and consistent:**
+   - Focus on observable behavior, not assumptions
+   - Apply the same standards across all evaluations
+   - When uncertain between scores, provide reasoning for your choice
+
+</output_instructions>
+
+<output_format>
+ANALYSIS: [3-5 sentences with specific evidence from tool history and final answer. Quote concrete examples.]
+
+EVIDENCE:
+- [Specific observation 1 from tool history]
+- [Specific observation 2 from tool history]
+- [Specific observation 3 about outcome]
+
+SCORE: [0.00-1.00]
+</output_format>
+        """.trimIndent()
     }
 }
