@@ -145,9 +145,8 @@ fun AIAgentSubgraphBuilderBase<*, *>.subgraphResearcher(): AIAgentSubgraphDelega
     edge(nodeExecuteTool forwardTo nodeSendToolResult)
 
     edge(
-        nodeSendToolResult forwardTo nodeFinish
+        nodeSendToolResult forwardTo nodeCompressResearch
             onMultipleAssistantMessages { true }
-            transformed { it.joinToString("\n") { message -> message.content } }
     )
 
     edge(nodeSendToolResult forwardTo nodeExecuteTool onMultipleToolCalls { true })

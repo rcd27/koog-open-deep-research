@@ -1,6 +1,9 @@
 package com.github.rcd27.koogopendeepsearch.agent.strategy
 
+import ai.koog.agents.core.agent.entity.AIAgentNodeBase
+import ai.koog.agents.core.agent.entity.AIAgentSubgraph
 import ai.koog.agents.core.dsl.builder.strategy
+import ai.koog.agents.core.dsl.extension.nodeExecuteMultipleToolsAndSendResults
 import ai.koog.agents.core.tools.annotations.LLMDescription
 import ai.koog.agents.core.tools.annotations.Tool
 import java.util.Date
@@ -18,9 +21,9 @@ fun deepResearchStrategy(
 
     val writeResearchBrief by nodeWriteResearchBrief()
 
-    val researchSupervisor by nodeResearchSupervisor()
+    val researchSupervisor: AIAgentNodeBase<ResearchQuestion, String> by nodeResearchSupervisor()
 
-    val researcher by subgraphResearcher()
+    val researcher: AIAgentSubgraph<String, String> by subgraphResearcher()
 
     val finalReportGeneration by node<String, String>("final_report_generation") { input ->
         input

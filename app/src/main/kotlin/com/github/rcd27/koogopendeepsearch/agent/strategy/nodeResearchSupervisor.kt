@@ -6,7 +6,7 @@ import ai.koog.agents.core.tools.annotations.LLMDescription
 import ai.koog.prompt.dsl.prompt
 import kotlinx.serialization.Serializable
 
-fun leadResearcherPrompt(date: String) =
+fun leadResearcherPrompt(date: String, max_concurrent_research_units: Int = 3) =
     """You are a research supervisor. Your job is to conduct research by calling the "ConductResearch" tool. 
 
 For context, today's date is $date.
@@ -39,7 +39,7 @@ Think like a research manager with limited time and resources. Follow these step
 - **Stop when you can answer confidently** - Don't keep delegating research for perfection
 - **Limit tool calls** - Always stop after {max_researcher_iterations} tool calls to ConductResearch and think_tool if you cannot find the right sources
 
-**Maximum {max_concurrent_research_units} parallel agents per iteration**
+**Maximum ${max_concurrent_research_units} parallel agents per iteration**
 </Hard Limits>
 
 <Show Your Thinking>
@@ -106,5 +106,6 @@ fun AIAgentSubgraphBuilderBase<*, *>.nodeResearchSupervisor(): AIAgentNodeDelega
             }
             prompt = initialPrompt
         }
+        // TODO: split ResearchQuestion to different topics if it can be parallelized
         input.researchBrief
     }
