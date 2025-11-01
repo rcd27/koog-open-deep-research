@@ -1,4 +1,4 @@
-package com.github.rcd27.koogopendeepsearch
+package com.github.rcd27.koogopendeepsearch.agent
 
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant

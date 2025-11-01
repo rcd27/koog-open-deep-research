@@ -16,7 +16,7 @@ import ai.koog.prompt.executor.model.PromptExecutor
 import ai.koog.prompt.llm.OllamaModels
 import ai.koog.prompt.message.Message
 import ai.koog.prompt.message.ResponseMetaInfo
-import com.github.rcd27.koogopendeepsearch.testClock
+import com.github.rcd27.koogopendeepsearch.agent.testClock
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk

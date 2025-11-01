@@ -6,11 +6,8 @@ import ai.koog.prompt.dsl.Prompt
 import ai.koog.prompt.dsl.prompt
 import com.github.rcd27.koogopendeepsearch.DeepResearchAgent
 import com.github.rcd27.koogopendeepsearch.agent.strategy.subgraphResearcher
-import com.github.rcd27.koogopendeepsearch.agent.utils.foldPromptMessages
 import kotlinx.coroutines.runBlocking
-import kotlinx.serialization.json.Json
 import org.junit.jupiter.api.Test
-import java.io.File
 
 val messagesShouldContinue = prompt("agent-should-continue") {
     user("What are the top coffee shops in San Francisco based on coffee quality?")
@@ -122,20 +119,11 @@ fun standaloneResearchStrategy(conversationPrompt: Prompt) =
             }
             "<bypass/>"
         }
-        val researcher: AIAgentNodeBase<String, String> by subgraphResearcher(3)
+        val researcher: AIAgentNodeBase<String, String> by subgraphResearcher()
         nodeStart then emulateChatHistory then researcher then nodeFinish
     }
 
 class ResearcherEvaluation {
-
-    @Test
-    fun `print prompts to file`() {
-        File("./messagesShouldContinue.txt").run {
-            val json = Json { prettyPrint = true }
-            val output = messagesShouldContinue.messages.foldPromptMessages()
-            writeText(output)
-        }
-    }
 
     @Test
     fun `Should continue research`(): Unit = runBlocking {

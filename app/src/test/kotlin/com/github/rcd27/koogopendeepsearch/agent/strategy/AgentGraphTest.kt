@@ -12,6 +12,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
 import kotlin.test.Test
 
+// FIXME: NoSuchMethodException
 class AgentGraphTest {
 
     @Test
