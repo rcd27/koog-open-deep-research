@@ -1,29 +1,14 @@
 package com.github.rcd27.koogopendeepsearch.agent.evaluation
 
-import ai.koog.agents.core.agent.AIAgent
-import ai.koog.agents.core.agent.config.AIAgentConfig
-import ai.koog.agents.core.agent.entity.AIAgentNode
 import ai.koog.agents.core.agent.entity.AIAgentNodeBase
-import ai.koog.agents.core.agent.entity.AIAgentSubgraph
 import ai.koog.agents.core.dsl.builder.strategy
-import ai.koog.agents.core.tools.ToolRegistry
-import ai.koog.agents.core.tools.annotations.LLMDescription
 import ai.koog.prompt.dsl.Prompt
 import ai.koog.prompt.dsl.prompt
-import ai.koog.prompt.executor.clients.openai.OpenAIModels
-import ai.koog.prompt.structure.StructureFixingParser
 import com.github.rcd27.koogopendeepsearch.DeepResearchAgent
-import com.github.rcd27.koogopendeepsearch.agent.executor.openAISinglePromptExecutor
 import com.github.rcd27.koogopendeepsearch.agent.strategy.ResearchQuestion
 import com.github.rcd27.koogopendeepsearch.agent.strategy.nodeWriteResearchBrief
-import com.github.rcd27.koogopendeepsearch.agent.utils.foldPromptMessages
 import kotlinx.coroutines.runBlocking
-import kotlinx.serialization.Serializable
 import kotlin.test.Test
-
-/**
- * see: https://academy.langchain.com/courses/take/deep-research-with-langgraph/lessons/67648977-scoping
- */
 
 fun standaloneResearchBriefStrategy(conversationPrompt: Prompt) =
     strategy<String, ResearchQuestion>("strategy_with_target_subgraph") {
@@ -42,7 +27,12 @@ class ResearchBriefEvaluation {
     @Test
     fun `evaluate conversation_1`(): Unit = runBlocking {
         val researchBriefAgent = DeepResearchAgent.withStrategy(standaloneResearchBriefStrategy(conversation1))
-        researchBriefAgent.evaluate("", criteria1, conversation1) { score: Double ->
+        researchBriefAgent.evaluateWithRubric(
+            input = "",
+            criteria = criteria1,
+            criterionPromptBuilder = ::briefCriteriaPrompt,
+            messageHistory = conversation1
+        ) { score: Double ->
             assert(score > 0.8)
         }
     }
@@ -50,7 +40,12 @@ class ResearchBriefEvaluation {
     @Test
     fun `evaluate conversation_2`(): Unit = runBlocking {
         val researchBriefAgent = DeepResearchAgent.withStrategy(standaloneResearchBriefStrategy(conversation2))
-        researchBriefAgent.evaluate("", criteria2, conversation2) { score: Double ->
+        researchBriefAgent.evaluateWithRubric(
+            input = "",
+            criteria = criteria2,
+            criterionPromptBuilder = ::briefCriteriaPrompt,
+            messageHistory = conversation2
+        ) { score: Double ->
             assert(score > 0.8)
         }
     }
@@ -92,100 +87,7 @@ class ResearchBriefEvaluation {
         )
         //endregion
 
-        //region Criteria
-        data class EvaluateSuccessCriteriaInput<T>(
-            val criterion: String,
-            val research: T
-        )
-
-        @LLMDescription(
-            "    Individual success criteria evaluation result.\n" +
-                "    \n" +
-                "    This model represents a single evaluation criteria that should be present\n" +
-                "    in the research brief, along with a detailed assessment of whether it was\n" +
-                "    successfully captured and the reasoning behind that assessment."
-        )
-        @Serializable
-        data class Criteria(
-            @property:LLMDescription("The specific success criteria being evaluated (e.g., 'Current age is 25', 'Monthly rent below 7k')")
-            val criteriaText: String,
-            @property:LLMDescription("Detailed explanation of why this criteria is or isn't captured in the research brief, including specific evidence from the brief")
-            val reasoning: String,
-            @property:LLMDescription("Whether this specific criteria is adequately captured in the research brief (True) or missing/inadequately addressed (False)")
-            val isCaptured: Boolean
-        )
-
-        /**
-         * LLM judge that evaluates whether research briefs capture specific criteria.
-         */
-        fun <T> evaluateSuccessCriteriaStrategy(messageHistory: Prompt) =
-            strategy<EvaluateSuccessCriteriaInput<T>, Criteria>("research_brief_evaluation") {
-                /* This is basically copy-paste from LLMAsJudge but with Criteria output */
-                val judge by node<EvaluateSuccessCriteriaInput<T>, Criteria>("judge") { input: EvaluateSuccessCriteriaInput<T> ->
-                    llm.writeSession {
-                        val initialPrompt = prompt.copy()
-                        val initialModel = model.copy()
-
-                        prompt = prompt("critic") {
-                            val combinedMessage = messageHistory.messages.foldPromptMessages()
-                            system(briefCriteriaPrompt(input))
-                            user(combinedMessage)
-                        }
-
-                        val result = requestLLMStructured<Criteria>(
-                            examples = emptyList(),
-                            fixingParser = StructureFixingParser(
-                                fixingModel = OpenAIModels.CostOptimized.GPT4oMini,
-                                retries = 3,
-                            )
-                        ).getOrThrow().structure
-
-                        prompt = initialPrompt
-                        model = initialModel
-                        result
-                    }
-                }
-
-                nodeStart then judge then nodeFinish
-            }
-
-        fun <INPUT, OUTPUT> AIAgent<INPUT, OUTPUT>.evaluate(
-            targetInput: INPUT,
-            criteria: List<String>,
-            conversation: Prompt,
-            scoring: (Double) -> Unit
-        ) = runBlocking {
-            val targetResearchQuestion = this@evaluate.run(targetInput)
-            val capturedCount = criteria.map { criterion ->
-                val evaluationAgentConfig = AIAgentConfig.withSystemPrompt(
-                    prompt = "EMPTY",
-                    maxAgentIterations = 50,
-                    llm = OpenAIModels.Chat.GPT4o // <<< GPT4o for judging llm-rubric
-                )
-                val evaluationAgent = AIAgent(
-                    promptExecutor = openAISinglePromptExecutor,
-                    strategy = evaluateSuccessCriteriaStrategy<OUTPUT>(conversation),
-                    agentConfig = evaluationAgentConfig,
-                    toolRegistry = ToolRegistry.EMPTY
-                )
-                val result: Criteria = evaluationAgent.run(
-                    EvaluateSuccessCriteriaInput(
-                        criterion,
-                        targetResearchQuestion
-                    )
-                )
-                result
-            }
-                .fold(0) { acc, i ->
-                    if (i.isCaptured) acc + 1 else acc
-                }
-
-            val score: Double = capturedCount.toDouble() / criteria.size
-            scoring.invoke(score)
-        }
-
-        // note: llm-rubric assert value
-        fun <T> briefCriteriaPrompt(input: EvaluateSuccessCriteriaInput<T>) = """
+        fun briefCriteriaPrompt(input: EvaluationInput<ResearchQuestion>) = """
 <role>                                                                                                         
 You are an expert research brief evaluator specializing in assessing whether generated research briefs         
 accurately capture user-specified criteria without loss of important details.                                  
@@ -207,7 +109,7 @@ ${input.criterion}
 </criterion_to_evaluate>                                                                                       
                                                                                                                
 <research_brief>                                                                                               
-${input.research}                                                                                               
+${input.targetToJudge}                                                                                               
 </research_brief>                                                                                              
                                                                                                                
 <evaluation_guidelines>                                                                                        
@@ -255,12 +157,4 @@ Judgment: NOT CAPTURED - specific doorman requirement not mentioned
 </output_instructions>
         """.trimIndent()
     }
-}
-
-fun <INPUT, OUTPUT> AIAgentSubgraph<INPUT, OUTPUT>.evaluate(dataset: INPUT): Any {
-    TODO("not implemented")
-}
-
-fun <INPUT, OUTPUT> AIAgentNode<INPUT, OUTPUT>.evaluate(dataset: INPUT): Any {
-    TODO("not implemented")
 }

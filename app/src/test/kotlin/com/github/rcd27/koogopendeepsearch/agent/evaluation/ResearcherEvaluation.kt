@@ -139,13 +139,13 @@ fun standaloneResearchStrategy(conversationPrompt: Prompt) =
         edge(
             researcher forwardTo shouldContinue
                 transformed { input ->
-                llm.writeSession {
-                    updatePrompt {
-                        user("Make a decision, if research is finished according to the information I've gathered, or continue researching.")
+                    llm.writeSession {
+                        updatePrompt {
+                            user("Make a decision, if research is finished according to the information I've gathered, or continue researching.")
+                        }
                     }
+                    input
                 }
-                input
-            }
         )
         edge(
             shouldContinue forwardTo nodeFinish transformed { it.getOrNull()!!.structure }
