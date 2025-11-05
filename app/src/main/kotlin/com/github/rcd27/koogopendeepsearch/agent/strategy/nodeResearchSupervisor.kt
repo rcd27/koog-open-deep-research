@@ -6,8 +6,12 @@ import ai.koog.agents.core.tools.annotations.LLMDescription
 import ai.koog.prompt.dsl.prompt
 import kotlinx.serialization.Serializable
 
-fun leadResearcherPrompt(date: String, max_concurrent_research_units: Int = 3) =
-    """You are a research supervisor. Your job is to conduct research by calling the "ConductResearch" tool. 
+fun leadResearcherPrompt(
+    date: String,
+    maxResearcherIterations: Int = 3,
+    maxConcurrentResearchUnits: Int = 3
+) ="""
+You are a research supervisor. Your job is to conduct research by calling the "ConductResearch" tool. 
 
 For context, today's date is $date.
 
@@ -37,9 +41,10 @@ Think like a research manager with limited time and resources. Follow these step
 **Task Delegation Budgets** (Prevent excessive delegation):
 - **Bias towards single agent** - Use single agent for simplicity unless the user request has clear opportunity for parallelization
 - **Stop when you can answer confidently** - Don't keep delegating research for perfection
-- **Limit tool calls** - Always stop after {max_researcher_iterations} tool calls to ConductResearch and think_tool if you cannot find the right sources
+- **Limit tool calls** - Always stop after $maxResearcherIterations tool calls to ConductResearch and think_tool 
+if you cannot find the right sources
 
-**Maximum ${max_concurrent_research_units} parallel agents per iteration**
+**Maximum $maxConcurrentResearchUnits parallel agents per iteration**
 </Hard Limits>
 
 <Show Your Thinking>
@@ -66,8 +71,7 @@ After each ConductResearch tool call, use think_tool to analyze the results:
 - A separate agent will write the final report - you just need to gather information
 - When calling ConductResearch, provide complete standalone instructions - sub-agents can't see other agents' work
 - Do NOT use acronyms or abbreviations in your research questions, be very clear and specific
-</Scaling Rules>
-    """.trimIndent()
+</Scaling Rules>""".trimIndent()
 
 @Serializable
 data class ConductResearch<T>(
