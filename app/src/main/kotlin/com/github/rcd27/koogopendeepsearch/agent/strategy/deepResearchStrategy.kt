@@ -1,9 +1,7 @@
 package com.github.rcd27.koogopendeepsearch.agent.strategy
 
 import ai.koog.agents.core.agent.entity.AIAgentNodeBase
-import ai.koog.agents.core.agent.entity.AIAgentSubgraph
 import ai.koog.agents.core.dsl.builder.strategy
-import ai.koog.agents.core.dsl.extension.nodeExecuteMultipleToolsAndSendResults
 import ai.koog.agents.core.tools.annotations.LLMDescription
 import ai.koog.agents.core.tools.annotations.Tool
 import java.util.Date
@@ -23,16 +21,16 @@ fun deepResearchStrategy(
 
     val researchSupervisor: AIAgentNodeBase<ResearchQuestion, String> by nodeResearchSupervisor()
 
-    val researcher: AIAgentSubgraph<String, String> by subgraphResearcher()
-
     val finalReportGeneration by node<String, String>("final_report_generation") { input ->
+        // At this point, the supervisor has already aggregated researcher outputs (if any)
+        // and produced a markdown summary. We simply pass it through or optionally
+        // could format/annotate it here in the future.
         input
     }
 
     nodeStart.then(clarifyWithUser)
         .then(writeResearchBrief)
         .then(researchSupervisor)
-        .then(researcher)
         .then(finalReportGeneration)
         .then(nodeFinish)
 }
