@@ -24,9 +24,9 @@ When you are completely satisfied with the research findings returned from the t
 You have access to three main tools:
 1. **ConductResearch**: Delegate research tasks to specialized sub-agents
 2. **ResearchComplete**: Indicate that research is complete
-3. **think_tool**: For reflection and strategic planning during research
+3. **thinkTool**: For reflection and strategic planning during research
 
-**CRITICAL: Use think_tool before calling ConductResearch to plan your approach, and after each ConductResearch to assess progress. Do not call think_tool with any other tools in parallel.**
+**CRITICAL: Use thinkTool before calling ConductResearch to plan your approach, and after each ConductResearch to assess progress. Do not call thinkTool with any other tools in parallel.**
 </Available Tools>
 
 <Instructions>
@@ -41,17 +41,17 @@ Think like a research manager with limited time and resources. Follow these step
 **Task Delegation Budgets** (Prevent excessive delegation):
 - **Bias towards single agent** - Use single agent for simplicity unless the user request has clear opportunity for parallelization
 - **Stop when you can answer confidently** - Don't keep delegating research for perfection
-- **Limit tool calls** - Always stop after $maxResearcherIterations tool calls to ConductResearch and think_tool 
+- **Limit tool calls** - Always stop after $maxResearcherIterations tool calls to ConductResearch and thinkTool 
 if you cannot find the right sources
 
 **Maximum $maxConcurrentResearchUnits parallel agents per iteration**
 </Hard Limits>
 
 <Show Your Thinking>
-Before you call ConductResearch tool call, use think_tool to plan your approach:
+Before you call ConductResearch tool call, use thinkTool to plan your approach:
 - Can the task be broken down into smaller sub-tasks?
 
-After each ConductResearch tool call, use think_tool to analyze the results:
+After each ConductResearch tool call, use thinkTool to analyze the results:
 - What key information did I find?
 - What's missing?
 - Do I have enough to answer the question comprehensively?
@@ -96,7 +96,7 @@ data class Summary(
  *  Lead research supervisor that plans research strategy and delegates to researchers.
  *
  *  The supervisor analyzes the research brief and decides how to break down the research
- *  into manageable tasks. It can use think_tool for strategic planning, ConductResearch
+ *  into manageable tasks. It can use thinkTool for strategic planning, ConductResearch
  *  to delegate tasks to sub-researchers, or ResearchComplete when satisfied with findings.
  */
 fun AIAgentSubgraphBuilderBase<*, *>.nodeResearchSupervisor(): AIAgentNodeDelegate<ResearchQuestion, String> =

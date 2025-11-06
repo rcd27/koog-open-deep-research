@@ -18,11 +18,11 @@ val messagesShouldContinue = prompt("agent-should-continue") {
             content = """
                 {"query": "coffee shops San Francisco popular locations"}
             """.trimIndent(),
-            tool = "tavily_search"
+            tool = "tavily-search"
         )
         result(
             id = "call_continue_search_001",
-            tool = "tavily_search",
+            tool = "tavily-search",
             content = """
                 {"result": "Search results show popular San Francisco cafes: Blue Bottle Coffee has great wifi and 
                 ambiance, Philz Coffee is known for custom blends and friendly service, Café Reveille has multiple 
@@ -30,7 +30,7 @@ val messagesShouldContinue = prompt("agent-should-continue") {
             """.trimIndent()
         )
     }
-    assistant("Let me use the think_tool to analyze these search results and determine next steps.")
+    assistant("Let me use the thinkTool to analyze these search results and determine next steps.")
     tool {
         call(
             id = "call_continue_search_002",
@@ -39,14 +39,14 @@ val messagesShouldContinue = prompt("agent-should-continue") {
                 features like wifi, ambiance, custom blends, and seating - but lacks specific coffee quality metrics.
                  The user specifically asked for evaluation based on coffee quality, which would require expert reviews, professional ratings, specialty certifications, or quality-focused customer feedback. I need to search specifically for coffee quality assessments, Coffee Review scores, specialty coffee credentials, or expert evaluations of SF coffee shops. The current information is insufficient to answer the user's question about coffee quality."}}
             """.trimIndent(),
-            tool = "think_tool"
+            tool = "thinkTool"
         )
         result(
             id = "call_continue_search_002",
             content = """
                 {"result": "Reflection recorded: Analysis of search results: The information I found focuses on general cafe features like wifi, ambiance, custom blends, and seating - but lacks specific coffee quality metrics. The user specifically asked for evaluation based on coffee quality, which would require expert reviews, professional ratings, specialty certifications, or quality-focused customer feedback. I need to search specifically for coffee quality assessments, Coffee Review scores, specialty coffee credentials, or expert evaluations of SF coffee shops. The current information is insufficient to answer the user's question about coffee quality."}
             """.trimIndent(),
-            tool = "think_tool"
+            tool = "thinkTool"
         )
     }
 }
@@ -60,7 +60,7 @@ val messagesShouldStop = prompt("agent-should-stop") {
             content = """
                 {"query": "best coffee quality San Francisco specialty coffee expert reviews Coffee Review ratings 2024"}
             """.trimIndent(),
-            tool = "tavily_search"
+            tool = "tavily-search"
         )
         // This ToolMessage provides COMPREHENSIVE coffee quality information - sufficient to answer the question
         result(
@@ -88,10 +88,10 @@ val messagesShouldStop = prompt("agent-should-stop") {
 
                 This provides a comprehensive assessment of SF coffee shops based specifically on coffee quality rather than ambiance or service.
             """.trimIndent(),
-            tool = "tavily_search"
+            tool = "tavily-search"
         )
     }
-    assistant("Let me reflect on the search results using the think_tool to assess whether I have sufficient information.")
+    assistant("Let me reflect on the search results using the thinkTool to assess whether I have sufficient information.")
     tool {
         call(
             id = "call_continue_search_002",
@@ -99,14 +99,14 @@ val messagesShouldStop = prompt("agent-should-stop") {
                 {"args": {"reflection": "Analysis of search results: The information I found focuses on general cafe 
                 features like wifi, ambiance, custom blends, and seating - but lacks specific coffee quality metrics."}}
             """,
-            tool = "think_tool"
+            tool = "thinkTool"
         )
         result(
             id = "call_continue_search_002",
             content = """
                 {"result": "Reflection recorded: Analysis of search results: The information I found focuses on general cafe features like wifi, ambiance, custom blends, and seating - but lacks specific coffee quality metrics."}
             """.trimIndent(),
-            tool = "think_tool"
+            tool = "thinkTool"
         )
     }
 }
@@ -154,9 +154,9 @@ class ResearcherEvaluation {
     private companion object {
         val criteria1 = listOf(
             "Search Strategy: Uses appropriate number of searches (2-5), progresses from broad to narrow queries, and avoids redundancy",
-            "Reflection Discipline: Consistently uses think_tool after each search (not in parallel) to analyze results and plan next steps",
+            "Reflection Discipline: Consistently uses thinkTool after each search (not in parallel) to analyze results and plan next steps",
             "Answer Quality: Gathers sufficient relevant sources (3+) and stops when question can be answered comprehensively",
-            "Tool Compliance: Properly uses tavily_search for searches, think_tool only for reflection, and respects all tool-calling constraints",
+            "Tool Compliance: Properly uses tavily-search for searches, thinkTool only for reflection, and respects all tool-calling constraints",
             "Research Judgement: Demonstrates when to stop—balances thoroughness with efficiency, avoiding both premature stopping and over-researching"
         )
 
@@ -215,7 +215,7 @@ ${input.criterion}
 - Outcome exceeds expectations
 
 **Evidence-Based Evaluation:**
-- Count actual tool calls (searches, think_tool usage)
+- Count actual tool calls (searches, thinkTool usage)
 - Track query progression (broad → narrow)
 - Identify reflection patterns (when and quality)
 - Assess source quality and relevance
@@ -224,18 +224,18 @@ ${input.criterion}
 <evaluation_examples>
 
 Example 1 - Search Efficiency:
-Tool History: "tavily_search('climate change'), think_tool('found overview, need specifics'), 
-tavily_search('climate change agriculture 2024'), think_tool('good sources, can answer'), [stopped]"
+Tool History: "tavily-search('climate change'), thinkTool('found overview, need specifics'), 
+tavily-search('climate change agriculture 2024'), thinkTool('good sources, can answer'), [stopped]"
 Question Complexity: Moderate
 SCORE: 0.85
 REASONING: Agent used 2 searches for moderate question—efficient. Good broad-to-narrow progression. 
 Appropriate stopping after gathering sufficient sources. Minor: could have searched one more specific aspect.
 
 Example 2 - Reflection Quality:
-Tool History: "tavily_search('AI trends'), tavily_search('machine learning 2024'), 
-tavily_search('AI applications'), tavily_search('AI companies'), think_tool('found lots of info')"
+Tool History: "tavily-search('AI trends'), tavily-search('machine learning 2024'), 
+tavily-search('AI applications'), tavily-search('AI companies'), thinkTool('found lots of info')"
 SCORE: 0.25
-REASONING: Agent made 4 searches before using think_tool once. No reflection after each search as required. 
+REASONING: Agent made 4 searches before using thinkTool once. No reflection after each search as required. 
 Final reflection was superficial. Critical violation of reflection discipline.
 
 Example 3 - Answer Completeness:
@@ -246,10 +246,10 @@ REASONING: Agent gathered 6 relevant sources (exceeds 3+ requirement). Answer th
 with proper citations. Excellent completeness and source usage.
 
 Example 4 - Tool Usage Discipline:
-Tool History: "tavily_search('topic') + think_tool('planning next search') [parallel], 
-tavily_search('specific aspect')"
+Tool History: "tavily-search('topic') + thinkTool('planning next search') [parallel], 
+tavily-search('specific aspect')"
 SCORE: 0.15
-REASONING: Critical violation—agent called think_tool in parallel with tavily_search, explicitly forbidden. 
+REASONING: Critical violation—agent called thinkTool in parallel with tavily-search, explicitly forbidden. 
 This indicates failure to follow tool usage constraints. Major compliance issue.
 
 Example 5 - Stopping Criterion:
@@ -266,13 +266,13 @@ by making 2 redundant searches. Demonstrated poor judgment about when research i
 1. **Analyze the tool call history systematically:**
    - Count and categorize tool calls
    - Identify patterns in search queries
-   - Track think_tool usage and quality
+   - Track thinkTool usage and quality
    - Note stopping point and reasoning
 
 2. **Extract concrete evidence:**
    - Quote specific tool calls that support your evaluation
    - Reference exact search queries and their progression
-   - Point to specific think_tool reflections (or absence)
+   - Point to specific thinkTool reflections (or absence)
    - Identify the stopping point and what information was available
 
 3. **Match evidence to criterion:**

@@ -22,11 +22,11 @@ You can use any of the tools provided to you to find resources that can help ans
 
 <Available Tools>
 You have access to two main tools:
-1. **tavily_search**: For conducting web searches to gather information
-2. **think_tool**: For reflection and strategic planning during research
+1. **tavily-search**: For conducting web searches to gather information
+2. **thinkTool**: For reflection and strategic planning during research
 $mcpPrompt
 
-**CRITICAL: Use think_tool after each search to reflect on results and plan next steps. Do not call think_tool with the tavily_search or any other tools. It should be to reflect on the results of the search.**
+**CRITICAL: Use thinkTool after each search to reflect on results and plan next steps. Do not call thinkTool with the tavily-search or any other tools. It should be to reflect on the results of the search.**
 </Available Tools>
 
 <Instructions>
@@ -52,7 +52,7 @@ Think like a human researcher with limited time. Follow these steps:
 </Hard Limits>
 
 <Show Your Thinking>
-After each search tool call, use think_tool to analyze the results:
+After each search tool call, use thinkTool to analyze the results:
 - What key information did I find?
 - What's missing?
 - Do I have enough to answer the question comprehensively?
@@ -75,11 +75,11 @@ Only these fully comprehensive cleaned findings are going to be returned to the 
 
 <Tool Call Filtering>
 **IMPORTANT**: When processing the research messages, focus only on substantive research content:
-- **Include**: All tavily_search results and findings from web searches
-- **Exclude**: think_tool calls and responses - these are internal agent reflections for decision-making and should not be included in the final research report
+- **Include**: All tavily-search results and findings from web searches
+- **Exclude**: thinkTool calls and responses - these are internal agent reflections for decision-making and should not be included in the final research report
 - **Focus on**: Actual information gathered from external sources, not the agent's internal reasoning process
 
-The think_tool calls contain strategic reflections and decision-making notes that are internal to the research process but do not contain factual information that should be preserved in the final report.
+The thinkTool calls contain strategic reflections and decision-making notes that are internal to the research process but do not contain factual information that should be preserved in the final report.
 </Tool Call Filtering>
 
 <Guidelines>

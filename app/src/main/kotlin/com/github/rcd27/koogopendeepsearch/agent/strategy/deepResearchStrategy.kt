@@ -6,12 +6,12 @@ import ai.koog.agents.core.dsl.builder.strategy
 import ai.koog.agents.core.dsl.extension.nodeExecuteMultipleToolsAndSendResults
 import ai.koog.agents.core.tools.annotations.LLMDescription
 import ai.koog.agents.core.tools.annotations.Tool
+import java.time.ZonedDateTime
+import java.time.format.DateTimeFormatter
 import java.util.Date
 
-@Tool
-@LLMDescription("Get current date in a human-readable format.")
 fun getTodayStr(): String {
-    return Date().toLocaleString() // FIXME: use relevant method for fetching local machine date-time
+    return ZonedDateTime.now().format(DateTimeFormatter.ISO_OFFSET_DATE_TIME)
 }
 
 fun deepResearchStrategy(
