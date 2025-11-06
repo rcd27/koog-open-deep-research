@@ -38,7 +38,7 @@ dependencies {
     /** Tests */
     testImplementation(kotlin("test"))
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.7.3")
-    testImplementation("ai.koog:agents-test:0.5.1")
+    testImplementation("ai.koog:agents-test:0.5.2")
     testImplementation("io.mockk:mockk:1.13.8")
 }
 
