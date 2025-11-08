@@ -4,6 +4,8 @@ import ai.koog.agents.core.agent.AIAgent
 import ai.koog.agents.core.agent.GraphAIAgent
 import ai.koog.agents.core.agent.config.AIAgentConfig
 import ai.koog.agents.core.agent.entity.AIAgentGraphStrategy
+import ai.koog.agents.core.agent.entity.AIAgentNodeBase
+import ai.koog.agents.core.dsl.builder.strategy
 import ai.koog.agents.core.tools.ToolRegistry
 import ai.koog.agents.core.tools.reflect.asTool
 import ai.koog.agents.features.opentelemetry.attribute.CustomAttribute
@@ -11,10 +13,25 @@ import ai.koog.agents.features.opentelemetry.feature.OpenTelemetry
 import ai.koog.agents.features.opentelemetry.integration.langfuse.addLangfuseExporter
 import ai.koog.agents.mcp.McpToolRegistryProvider
 import ai.koog.agents.mcp.defaultStdioTransport
+import ai.koog.prompt.dsl.Prompt
 import ai.koog.prompt.executor.clients.openai.OpenAIModels
 import com.github.rcd27.koogopendeepsearch.agent.executor.openAISinglePromptExecutor
 import com.github.rcd27.koogopendeepsearch.agent.strategy.deepResearchStrategy
+import com.github.rcd27.koogopendeepsearch.agent.strategy.subgraphResearcher
 import com.github.rcd27.koogopendeepsearch.agent.tools.thinkTool
+
+
+fun standaloneResearchStrategy(conversationPrompt: Prompt) =
+    strategy<String, String>("standalone_research_strategy") {
+        val emulateChatHistory by node<String, String>("emulate_message_history") {
+            llm.writeSession {
+                prompt = conversationPrompt
+            }
+            "<bypass/>"
+        }
+        val researcher: AIAgentNodeBase<String, String> by subgraphResearcher()
+        nodeStart then emulateChatHistory then researcher then nodeFinish
+    }
 
 object DeepResearchAgent {
     val agentConfig = AIAgentConfig.withSystemPrompt(

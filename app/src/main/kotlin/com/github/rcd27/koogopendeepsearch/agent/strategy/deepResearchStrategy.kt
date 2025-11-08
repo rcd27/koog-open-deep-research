@@ -19,11 +19,9 @@ fun deepResearchStrategy(
 ) = strategy<String, String>("deep_research") {
     val clarifyWithUser by subgraphClarifyWithUser(askUserTool)
 
-    val writeResearchBrief by nodeWriteResearchBrief()
+    val writeResearchBrief: AIAgentNodeBase<String, ResearchQuestion> by nodeWriteResearchBrief()
 
-    val researchSupervisor: AIAgentNodeBase<ResearchQuestion, String> by nodeResearchSupervisor()
-
-    val researcher: AIAgentSubgraph<String, String> by subgraphResearcher()
+    val researchSupervisor: AIAgentSubgraph<ResearchQuestion, String> by subgraphResearchSupervisor(3,3)
 
     val finalReportGeneration by node<String, String>("final_report_generation") { input ->
         input
@@ -32,7 +30,6 @@ fun deepResearchStrategy(
     nodeStart.then(clarifyWithUser)
         .then(writeResearchBrief)
         .then(researchSupervisor)
-        .then(researcher)
         .then(finalReportGeneration)
         .then(nodeFinish)
 }

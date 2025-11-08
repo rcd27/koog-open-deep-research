@@ -8,7 +8,9 @@ import ai.koog.agents.core.tools.annotations.LLMDescription
 import ai.koog.prompt.dsl.prompt
 import ai.koog.prompt.executor.clients.openai.OpenAIModels
 import ai.koog.prompt.structure.StructureFixingParser
+import com.github.rcd27.koogopendeepsearch.DeepResearchAgent
 import com.github.rcd27.koogopendeepsearch.agent.tools.thinkTool
+import com.github.rcd27.koogopendeepsearch.standaloneResearchStrategy
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
@@ -20,7 +22,7 @@ fun leadResearcherPrompt(
     date: String,
     maxResearcherIterations: Int = 3,
     maxConcurrentResearchUnits: Int = 3
-) ="""
+) = """
 You are a research supervisor. Your job is to conduct research by calling the "ConductResearch" tool. 
 
 For context, today's date is $date.
@@ -84,23 +86,26 @@ After each ConductResearch tool call, use thinkTool to analyze the results:
 </Scaling Rules>""".trimIndent()
 
 @Serializable
+sealed interface ResearchAction
+
+@Serializable
 data class ConductResearch<T>(
     @property:LLMDescription("Call this tool to conduct research on a specific topic.")
     val researchTopic: T
-)
+) : ResearchAction
 
 @Serializable
 @LLMDescription("Call this tool to indicate that the research is complete.")
-object ResearchComplete
+object ResearchComplete : ResearchAction
 
-@Serializable
-@LLMDescription("Research summary with key findings.")
-data class Summary(
-    @property:LLMDescription("Research summary.")
-    val summary: String,
-    @property:LLMDescription("Key findings.")
-    val keyConcepts: String
-)
+//@Serializable
+//@LLMDescription("Research summary with key findings.")
+//data class Summary(
+//    @property:LLMDescription("Research summary.")
+//    val summary: String,
+//    @property:LLMDescription("Key findings.")
+//    val keyConcepts: String
+//)
 
 @Serializable
 data class SupervisorIteration(
@@ -116,7 +121,7 @@ data class SupervisorState(
 
 @Serializable
 data class SupervisorPlan(
-    val action: String, // "ConductResearch" or "ResearchComplete"
+    val action: ResearchAction,
     val subtopics: List<String> = emptyList(),
     val finalSummary: String = ""
 )
@@ -150,13 +155,12 @@ fun AIAgentSubgraphBuilderBase<*, *>.nodeResearchSupervisor(): AIAgentNodeDelega
     }
 
 fun AIAgentSubgraphBuilderBase<*, *>.subgraphResearchSupervisor(
-    researcherRunner: suspend (String) -> String,
     maxIterations: Int = 3,
     maxConcurrent: Int = 3
-): AIAgentSubgraphDelegate<String, String> = subgraph("research_supervisor") {
+): AIAgentSubgraphDelegate<ResearchQuestion, String> = subgraph("research_supervisor") {
 
-    val initState by node<String, SupervisorState>("init_state") { brief ->
-        SupervisorState(brief = brief, iterations = emptyList())
+    val initState by node<ResearchQuestion, SupervisorState>("init_state") { brief ->
+        SupervisorState(brief = brief.researchBrief, iterations = emptyList())
     }
 
     val planNode by node<SupervisorState, PlanOutcome>("supervisor_plan") { state ->
@@ -165,7 +169,7 @@ fun AIAgentSubgraphBuilderBase<*, *>.subgraphResearchSupervisor(
             return@node PlanOutcome(
                 state = state,
                 plan = SupervisorPlan(
-                    action = "ResearchComplete",
+                    action = ResearchComplete,
                     finalSummary = "Iteration budget exhausted. Proceeding to finalize based on gathered findings."
                 )
             )
@@ -197,8 +201,12 @@ fun AIAgentSubgraphBuilderBase<*, *>.subgraphResearchSupervisor(
 
             val structured = requestLLMStructured<SupervisorPlan>(
                 examples = listOf(
-                    SupervisorPlan(action = "ConductResearch", subtopics = listOf("Subtopic A", "Subtopic B")),
-                    SupervisorPlan(action = "ResearchComplete", finalSummary = "We have sufficient findings.")
+                    SupervisorPlan(
+                        action = ConductResearch("Subtopic A"), subtopics = listOf(
+                            "Subtopic A", "Subtopic B"
+                        )
+                    ),
+                    SupervisorPlan(action = ResearchComplete, finalSummary = "We have sufficient findings.")
                 ),
                 fixingParser = StructureFixingParser(
                     fixingModel = OpenAIModels.CostOptimized.GPT4oMini,
@@ -226,7 +234,13 @@ fun AIAgentSubgraphBuilderBase<*, *>.subgraphResearchSupervisor(
             subtopics.map { topic ->
                 async {
                     sem.withPermit {
-                        researcherRunner(topic)
+                        val researcherAgent = DeepResearchAgent.withStrategy(
+                            standaloneResearchStrategy(
+                                prompt("researcher") {
+                                    system(topic)
+                                }
+                            ))
+                        researcherAgent.run(state.brief)
                     }
                 }
             }.awaitAll()
@@ -291,7 +305,7 @@ fun AIAgentSubgraphBuilderBase<*, *>.subgraphResearchSupervisor(
     // If ConductResearch -> execute -> reflect -> plan (loop)
     edge(
         planNode forwardTo executeNode
-            onCondition { it.plan.action.equals("ConductResearch", ignoreCase = true) }
+            onCondition { it.plan.action is ConductResearch<*> }
     )
     edge(executeNode forwardTo reflectNode)
     edge(reflectNode forwardTo planNode)
@@ -299,7 +313,7 @@ fun AIAgentSubgraphBuilderBase<*, *>.subgraphResearchSupervisor(
     // If ResearchComplete -> finish
     edge(
         planNode forwardTo finishNode
-            onCondition { it.plan.action.equals("ResearchComplete", ignoreCase = true) }
+            onCondition { it.plan.action is ResearchComplete}
     )
 
     edge(finishNode forwardTo nodeFinish)
