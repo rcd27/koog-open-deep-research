@@ -10,6 +10,8 @@
 * "Cold" start allways forces LLM to execute once with NO messages but Message.System(which is defined in AIAgent 
   Config)
 * Evaluations pretend to mock message history; however, standalone strategies are not mocked from tool calls. 
+* ResearchSupervisor is not used
+* Limits should be built in to Researcher
 
 #### Prerequisites
 
