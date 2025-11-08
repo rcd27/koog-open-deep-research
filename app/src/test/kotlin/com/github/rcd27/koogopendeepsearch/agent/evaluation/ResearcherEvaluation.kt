@@ -1,12 +1,8 @@
 package com.github.rcd27.koogopendeepsearch.agent.evaluation
 
-import ai.koog.agents.core.agent.entity.AIAgentNodeBase
-import ai.koog.agents.core.dsl.builder.strategy
-import ai.koog.prompt.dsl.Prompt
 import ai.koog.prompt.dsl.prompt
 import com.github.rcd27.koogopendeepsearch.DeepResearchAgent
 import com.github.rcd27.koogopendeepsearch.agent.strategy.standaloneResearchStrategy
-import com.github.rcd27.koogopendeepsearch.agent.strategy.subgraphResearcher
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Test
 

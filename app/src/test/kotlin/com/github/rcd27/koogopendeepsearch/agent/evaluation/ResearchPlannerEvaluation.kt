@@ -1,6 +1,5 @@
 package com.github.rcd27.koogopendeepsearch.agent.evaluation
 
-
 import ai.koog.agents.core.agent.entity.AIAgentNodeBase
 import ai.koog.agents.core.dsl.builder.forwardTo
 import ai.koog.agents.core.dsl.builder.strategy

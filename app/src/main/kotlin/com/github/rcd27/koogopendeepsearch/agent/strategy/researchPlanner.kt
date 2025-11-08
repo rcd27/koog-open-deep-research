@@ -27,10 +27,10 @@ fun AIAgentSubgraphBuilderBase<*, *>.nodeResearchPlanner(): AIAgentNodeDelegate<
     node("node_research_planner") { input ->
         llm.writeSession {
             val initialModel = model.copy()
-            model =  OpenAIModels.Chat.GPT4o
+            model = OpenAIModels.Chat.GPT4o
             appendPrompt {
-            system(
-                """
+                system(
+                    """
                         **Instruction:**
                         You are an expert research analyst. Your task is to break down the given **Research Brief** into **3–5 distinct research components**, each of which could be investigated independently by separate agents or teams.
 
@@ -87,18 +87,18 @@ fun AIAgentSubgraphBuilderBase<*, *>.nodeResearchPlanner(): AIAgentNodeDelegate<
                           ]
                         }
                         ```
-                """.trimIndent()
-            )
-            user(
-                markdown {
-                    h2("Research Brief")
-                    br()
-                    text(input.researchBrief)
-                }
-            )
+                    """.trimIndent()
+                )
+                user(
+                    markdown {
+                        h2("Research Brief")
+                        br()
+                        text(input.researchBrief)
+                    }
+                )
+            }
+            val response = requestLLMStructured<ResearchPlan>().getOrThrow().structure
+            model = initialModel
+            response
         }
-        val response = requestLLMStructured<ResearchPlan>().getOrThrow().structure
-        model = initialModel
-        response
     }
-}

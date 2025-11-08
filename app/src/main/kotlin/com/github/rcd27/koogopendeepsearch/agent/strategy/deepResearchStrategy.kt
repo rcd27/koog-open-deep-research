@@ -62,8 +62,11 @@ fun deepResearchStrategy(
     val finalReportGeneration by node<String, String>("final_report_generation") { input ->
         llm.writeSession {
             appendPrompt {
-                system("""Your goal is to compress research provided by user, provide nicely printed markdown 
-                    |document with key studies and links to sources""".trimMargin())
+                system(
+                    """Your goal is to compress research provided by user, provide nicely printed markdown 
+                    |document with key studies and links to sources
+                    """.trimMargin()
+                )
                 user(input)
             }
             requestLLM().content
