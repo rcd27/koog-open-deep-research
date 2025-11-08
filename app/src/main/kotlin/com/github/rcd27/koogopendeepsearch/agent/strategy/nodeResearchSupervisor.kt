@@ -2,8 +2,18 @@ package com.github.rcd27.koogopendeepsearch.agent.strategy
 
 import ai.koog.agents.core.dsl.builder.AIAgentNodeDelegate
 import ai.koog.agents.core.dsl.builder.AIAgentSubgraphBuilderBase
+import ai.koog.agents.core.dsl.builder.AIAgentSubgraphDelegate
+import ai.koog.agents.core.dsl.builder.forwardTo
 import ai.koog.agents.core.tools.annotations.LLMDescription
 import ai.koog.prompt.dsl.prompt
+import ai.koog.prompt.executor.clients.openai.OpenAIModels
+import ai.koog.prompt.structure.StructureFixingParser
+import com.github.rcd27.koogopendeepsearch.agent.tools.thinkTool
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import kotlinx.serialization.Serializable
 
 fun leadResearcherPrompt(
@@ -92,6 +102,31 @@ data class Summary(
     val keyConcepts: String
 )
 
+@Serializable
+data class SupervisorIteration(
+    val subtopics: List<String> = emptyList(),
+    val findingsSummary: String = ""
+)
+
+@Serializable
+data class SupervisorState(
+    val brief: String,
+    val iterations: List<SupervisorIteration> = emptyList()
+)
+
+@Serializable
+data class SupervisorPlan(
+    val action: String, // "ConductResearch" or "ResearchComplete"
+    val subtopics: List<String> = emptyList(),
+    val finalSummary: String = ""
+)
+
+@Serializable
+data class PlanOutcome(
+    val state: SupervisorState,
+    val plan: SupervisorPlan
+)
+
 /**
  *  Lead research supervisor that plans research strategy and delegates to researchers.
  *
@@ -113,3 +148,159 @@ fun AIAgentSubgraphBuilderBase<*, *>.nodeResearchSupervisor(): AIAgentNodeDelega
         // TODO: split ResearchQuestion to different topics if it can be parallelized
         input.researchBrief
     }
+
+fun AIAgentSubgraphBuilderBase<*, *>.subgraphResearchSupervisor(
+    researcherRunner: suspend (String) -> String,
+    maxIterations: Int = 3,
+    maxConcurrent: Int = 3
+): AIAgentSubgraphDelegate<String, String> = subgraph("research_supervisor") {
+
+    val initState by node<String, SupervisorState>("init_state") { brief ->
+        SupervisorState(brief = brief, iterations = emptyList())
+    }
+
+    val planNode by node<SupervisorState, PlanOutcome>("supervisor_plan") { state ->
+        // Enforce hard limit before asking LLM
+        if (state.iterations.size >= maxIterations) {
+            return@node PlanOutcome(
+                state = state,
+                plan = SupervisorPlan(
+                    action = "ResearchComplete",
+                    finalSummary = "Iteration budget exhausted. Proceeding to finalize based on gathered findings."
+                )
+            )
+        }
+
+        val historyText = buildString {
+            state.iterations.forEachIndexed { idx, it ->
+                appendLine("Iteration #${idx + 1}:")
+                appendLine("- Subtopics: ${it.subtopics.joinToString()}")
+                appendLine("- Findings summary: ${it.findingsSummary.take(1000)}")
+                appendLine()
+            }
+        }
+
+        val decision = llm.writeSession {
+            val initialPrompt = prompt
+            prompt = prompt("research_supervisor_prompt") {
+                system(leadResearcherPrompt(getTodayStr(), maxIterations, maxConcurrent))
+                user(
+                    buildString {
+                        appendLine("Research brief:")
+                        appendLine(state.brief)
+                        appendLine()
+                        appendLine("History:")
+                        appendLine(historyText.ifBlank { "<empty>" })
+                    }
+                )
+            }
+
+            val structured = requestLLMStructured<SupervisorPlan>(
+                examples = listOf(
+                    SupervisorPlan(action = "ConductResearch", subtopics = listOf("Subtopic A", "Subtopic B")),
+                    SupervisorPlan(action = "ResearchComplete", finalSummary = "We have sufficient findings.")
+                ),
+                fixingParser = StructureFixingParser(
+                    fixingModel = OpenAIModels.CostOptimized.GPT4oMini,
+                    retries = 3
+                )
+            ).getOrThrow().structure
+
+            prompt = initialPrompt
+            structured
+        }
+
+        PlanOutcome(state = state, plan = decision)
+    }
+
+    val executeNode by node<PlanOutcome, SupervisorState>("supervisor_execute") { outcome ->
+        val state = outcome.state
+        val plan = outcome.plan
+        val subtopics = plan.subtopics.map { it.trim() }.filter { it.isNotEmpty() }.distinct()
+        if (subtopics.isEmpty()) {
+            return@node state
+        }
+
+        val sem = Semaphore(maxConcurrent)
+        val results: List<String> = coroutineScope {
+            subtopics.map { topic ->
+                async {
+                    sem.withPermit {
+                        researcherRunner(topic)
+                    }
+                }
+            }.awaitAll()
+        }
+
+        val findingsSummary = results.joinToString(separator = "\n\n") { it }
+        val updatedIter = SupervisorIteration(
+            subtopics = subtopics,
+            findingsSummary = findingsSummary
+        )
+        state.copy(iterations = state.iterations + updatedIter)
+    }
+
+    val reflectNode by node<SupervisorState, SupervisorState>("supervisor_reflect") { state ->
+        // Produce a brief reflection via LLM, then record via thinkTool
+        val reflection = llm.writeSession {
+            val initialPrompt = prompt
+            prompt = prompt("supervisor_reflection") {
+                system("Reflect on the current research progress and plan the next step. Keep it brief (<= 5 sentences).")
+                user(
+                    buildString {
+                        appendLine("Brief:")
+                        appendLine(state.brief)
+                        appendLine()
+                        appendLine("Latest findings summary:")
+                        appendLine(state.iterations.lastOrNull()?.findingsSummary?.take(1000) ?: "<none>")
+                    }
+                )
+            }
+            val resp = requestLLM().content
+            prompt = initialPrompt
+            resp
+        }
+        // Record reflection via thinkTool (not in parallel with ConductResearch)
+        thinkTool(reflection)
+        state
+    }
+
+    val finishNode by node<PlanOutcome, String>("supervisor_finish") { outcome ->
+        val state = outcome.state
+        val plan = outcome.plan
+        val final = buildString {
+            if (plan.finalSummary.isNotBlank()) {
+                appendLine(plan.finalSummary)
+                appendLine()
+            }
+            appendLine("--- Consolidated Findings ---")
+            state.iterations.forEachIndexed { idx, it ->
+                appendLine("Iteration #${idx + 1}")
+                appendLine("Subtopics: ${it.subtopics.joinToString()}")
+                appendLine(it.findingsSummary)
+                appendLine()
+            }
+        }.trim()
+        final
+    }
+
+    // Graph wiring
+    edge(nodeStart forwardTo initState)
+    edge(initState forwardTo planNode)
+
+    // If ConductResearch -> execute -> reflect -> plan (loop)
+    edge(
+        planNode forwardTo executeNode
+            onCondition { it.plan.action.equals("ConductResearch", ignoreCase = true) }
+    )
+    edge(executeNode forwardTo reflectNode)
+    edge(reflectNode forwardTo planNode)
+
+    // If ResearchComplete -> finish
+    edge(
+        planNode forwardTo finishNode
+            onCondition { it.plan.action.equals("ResearchComplete", ignoreCase = true) }
+    )
+
+    edge(finishNode forwardTo nodeFinish)
+}
