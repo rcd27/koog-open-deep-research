@@ -109,21 +109,25 @@ object ResearchComplete : ResearchAction
 
 @Serializable
 data class SupervisorIteration(
-    val subtopics: List<String> = emptyList(),
-    val findingsSummary: String = ""
+    val subtopics: List<String>,
+    val findingsSummary: String
 )
 
 @Serializable
 data class SupervisorState(
     val brief: String,
-    val iterations: List<SupervisorIteration> = emptyList()
+    val iterations: List<SupervisorIteration>
 )
 
 @Serializable
+@LLMDescription("Plan your approach and assess progress.")
 data class SupervisorPlan(
+    @property:LLMDescription("The action to take next.")
     val action: ResearchAction,
-    val subtopics: List<String> = emptyList(),
-    val finalSummary: String = ""
+    @property:LLMDescription("Subtopics that need to be research")
+    val subtopics: List<String>,
+    @property:LLMDescription("A summary of the findings so far.")
+    val finalSummary: String
 )
 
 @Serializable
@@ -170,7 +174,8 @@ fun AIAgentSubgraphBuilderBase<*, *>.subgraphResearchSupervisor(
                 state = state,
                 plan = SupervisorPlan(
                     action = ResearchComplete,
-                    finalSummary = "Iteration budget exhausted. Proceeding to finalize based on gathered findings."
+                    finalSummary = "Iteration budget exhausted. Proceeding to finalize based on gathered findings.",
+                    subtopics = emptyList()
                 )
             )
         }
@@ -202,11 +207,17 @@ fun AIAgentSubgraphBuilderBase<*, *>.subgraphResearchSupervisor(
             val structured = requestLLMStructured<SupervisorPlan>(
                 examples = listOf(
                     SupervisorPlan(
-                        action = ConductResearch("Subtopic A"), subtopics = listOf(
+                        action = ConductResearch("Research Topic A"),
+                        finalSummary = "We have sufficient findings.",
+                        subtopics = listOf(
                             "Subtopic A", "Subtopic B"
                         )
                     ),
-                    SupervisorPlan(action = ResearchComplete, finalSummary = "We have sufficient findings.")
+                    SupervisorPlan(
+                        action = ResearchComplete,
+                        finalSummary = "We have sufficient findings.",
+                        subtopics = listOf("Subtopic A", "Subtopic B")
+                    )
                 ),
                 fixingParser = StructureFixingParser(
                     fixingModel = OpenAIModels.CostOptimized.GPT4oMini,
@@ -313,7 +324,7 @@ fun AIAgentSubgraphBuilderBase<*, *>.subgraphResearchSupervisor(
     // If ResearchComplete -> finish
     edge(
         planNode forwardTo finishNode
-            onCondition { it.plan.action is ResearchComplete}
+            onCondition { it.plan.action is ResearchComplete }
     )
 
     edge(finishNode forwardTo nodeFinish)
