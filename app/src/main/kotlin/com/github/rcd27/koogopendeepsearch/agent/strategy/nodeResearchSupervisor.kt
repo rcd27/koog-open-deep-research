@@ -2,15 +2,13 @@ package com.github.rcd27.koogopendeepsearch.agent.strategy
 
 import ai.koog.agents.core.dsl.builder.AIAgentNodeDelegate
 import ai.koog.agents.core.dsl.builder.AIAgentSubgraphBuilderBase
-import ai.koog.agents.core.tools.annotations.LLMDescription
 import ai.koog.prompt.dsl.prompt
-import kotlinx.serialization.Serializable
 
 fun leadResearcherPrompt(
     date: String,
     maxResearcherIterations: Int = 3,
     maxConcurrentResearchUnits: Int = 3
-) ="""
+) = """
 You are a research supervisor. Your job is to conduct research by calling the "ConductResearch" tool. 
 
 For context, today's date is $date.
@@ -71,26 +69,8 @@ After each ConductResearch tool call, use thinkTool to analyze the results:
 - A separate agent will write the final report - you just need to gather information
 - When calling ConductResearch, provide complete standalone instructions - sub-agents can't see other agents' work
 - Do NOT use acronyms or abbreviations in your research questions, be very clear and specific
-</Scaling Rules>""".trimIndent()
-
-@Serializable
-data class ConductResearch<T>(
-    @property:LLMDescription("Call this tool to conduct research on a specific topic.")
-    val researchTopic: T
-)
-
-@Serializable
-@LLMDescription("Call this tool to indicate that the research is complete.")
-object ResearchComplete
-
-@Serializable
-@LLMDescription("Research summary with key findings.")
-data class Summary(
-    @property:LLMDescription("Research summary.")
-    val summary: String,
-    @property:LLMDescription("Key findings.")
-    val keyConcepts: String
-)
+</Scaling Rules>
+""".trimIndent()
 
 /**
  *  Lead research supervisor that plans research strategy and delegates to researchers.

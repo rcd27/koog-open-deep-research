@@ -28,7 +28,7 @@ class ResearchSupervisorEvaluation {
     fun `Supervisor returns original brief unchanged`(): Unit = runBlocking {
         val researchBrief = "Research top coffee shops in San Francisco focused strictly on coffee quality (taste) using expert reviews and credible sources."
         val conversation = prompt("supervisor-conversation") {
-            system("OriginalBrief: ${researchBrief}")
+            system("OriginalBrief: $researchBrief")
             user("I need to research the best coffee shops in San Francisco focusing on coffee quality only.")
             assistant("I'll guide the research process and supervise the sub-agents accordingly.")
         }
@@ -43,7 +43,7 @@ class ResearchSupervisorEvaluation {
             criterionPromptBuilder = ::supervisorCriterionPrompt,
             messageHistory = conversation
         ) { score: Double ->
-            // Since supervisor node currently just returns the research brief, 
+            // Since supervisor node currently just returns the research brief,
             // we expect very high alignment with the criteria below.
             assert(score >= 0.8)
         }
