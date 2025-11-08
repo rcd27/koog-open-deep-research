@@ -1,13 +1,17 @@
 package com.github.rcd27.koogopendeepsearch.agent.strategy
 
+import ai.koog.agents.core.agent.entity.AIAgentNodeBase
 import ai.koog.agents.core.dsl.builder.AIAgentSubgraphBuilderBase
 import ai.koog.agents.core.dsl.builder.AIAgentSubgraphDelegate
 import ai.koog.agents.core.dsl.builder.forwardTo
+import ai.koog.agents.core.dsl.builder.strategy
 import ai.koog.agents.core.dsl.extension.nodeExecuteMultipleTools
 import ai.koog.agents.core.dsl.extension.nodeLLMSendMultipleToolResults
 import ai.koog.agents.core.dsl.extension.onMultipleAssistantMessages
 import ai.koog.agents.core.dsl.extension.onMultipleToolCalls
+import ai.koog.prompt.dsl.Prompt
 import ai.koog.prompt.message.Message
+import com.github.rcd27.koogopendeepsearch.agent.strategy.subgraphResearcher
 
 // TODO: mcpPrompt not used
 fun researcherPrompt(date: String, mcpPrompt: String) = """
@@ -110,10 +114,22 @@ The report should be structured like this:
 Critical Reminder: It is extremely important that any information that is even remotely relevant to the user's research topic is preserved verbatim (e.g. don't rewrite it, don't summarize it, don't paraphrase it).
 """.trimIndent()
 
+fun standaloneResearchStrategy(conversationPrompt: Prompt, name: String = "default") =
+    strategy<String, String>("standalone_research_strategy_$name") {
+        val emulateChatHistory by node<String, String>("emulate_message_history") {
+            llm.writeSession {
+                prompt = conversationPrompt
+            }
+            "<bypass/>"
+        }
+        val researcher: AIAgentNodeBase<String, String> by subgraphResearcher()
+        nodeStart then emulateChatHistory then researcher then nodeFinish
+    }
+
 fun AIAgentSubgraphBuilderBase<*, *>.subgraphResearcher(): AIAgentSubgraphDelegate<String, String> = subgraph("researcher") {
     val nodeCallLLM by node<String, List<Message.Response>> {
         llm.writeSession {
-            updatePrompt {
+            appendPrompt {
                 system(researcherPrompt(date = getTodayStr(), ""))
             }
             requestLLMMultiple()

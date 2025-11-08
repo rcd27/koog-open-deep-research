@@ -19,7 +19,7 @@ import com.github.rcd27.koogopendeepsearch.agent.tools.thinkTool
 object DeepResearchAgent {
     val agentConfig = AIAgentConfig.withSystemPrompt(
         prompt = "You are deep research agent",
-        maxAgentIterations = 50,
+        maxAgentIterations = 100,
         llm = OpenAIModels.CostOptimized.GPT4oMini // TODO: check model in langchain implementation
     )
 

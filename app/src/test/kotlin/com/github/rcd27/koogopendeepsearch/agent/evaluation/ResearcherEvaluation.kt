@@ -5,6 +5,7 @@ import ai.koog.agents.core.dsl.builder.strategy
 import ai.koog.prompt.dsl.Prompt
 import ai.koog.prompt.dsl.prompt
 import com.github.rcd27.koogopendeepsearch.DeepResearchAgent
+import com.github.rcd27.koogopendeepsearch.agent.strategy.standaloneResearchStrategy
 import com.github.rcd27.koogopendeepsearch.agent.strategy.subgraphResearcher
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Test
@@ -110,18 +111,6 @@ val messagesShouldStop = prompt("agent-should-stop") {
         )
     }
 }
-
-fun standaloneResearchStrategy(conversationPrompt: Prompt) =
-    strategy<String, String>("standalone_research_strategy") {
-        val emulateChatHistory by node<String, String>("emulate_message_history") {
-            llm.writeSession {
-                prompt = conversationPrompt
-            }
-            "<bypass/>"
-        }
-        val researcher: AIAgentNodeBase<String, String> by subgraphResearcher()
-        nodeStart then emulateChatHistory then researcher then nodeFinish
-    }
 
 class ResearcherEvaluation {
 
