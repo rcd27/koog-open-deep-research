@@ -27,6 +27,7 @@ fun deepResearchStrategy(
 
     val researchPlanner: AIAgentNodeBase<ResearchQuestion, ResearchPlan> by nodeResearchPlanner()
 
+    // FIXME: parallel execution from scratch, didn't get how to implement this with `parallel`
     val executeNode by node<ResearchPlan, String>("supervisor_execute") { researchPlan ->
         val sem = Semaphore(researchPlan.researchComponents.size)
         val results: List<String> = coroutineScope {
@@ -46,7 +47,7 @@ fun deepResearchStrategy(
                                         }
                                     }
                                 },
-                                name = component.title
+                                name = component.title // needed for OpenTelemetry not to crash trying to send multiple spans with the same name
                             )
                         )
                         researcherAgent.run("")
@@ -58,6 +59,8 @@ fun deepResearchStrategy(
         val findingsSummary = results.joinToString(separator = "\n\n") { it }
         findingsSummary
     }
+
+    // TODO: research-supervisor should collect all researches and make decision either to stop or continue
 
     val finalReportGeneration by node<String, String>("final_report_generation") { input ->
         llm.writeSession {

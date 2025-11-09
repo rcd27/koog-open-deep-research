@@ -79,6 +79,7 @@ class AgentGraphTest {
 
                     /** SKIPPED: supervisor */
 
+                    // FIXME: broken since giving different names to nodes for parallelization
                     val researcher = assertSubgraphByName<String, String>("researcher")
                     verifySubgraph(researcher)
                 }
